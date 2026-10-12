@@ -1,0 +1,20 @@
+{
+  "name": "local-todo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/api", "apps/web"],
+  "engines": { "node": ">=22 <25" },
+  "scripts": {
+    "build": "npm run build --workspace @local-todo/api && npm run build --workspace @local-todo/web",
+    "test": "npm run test --workspace @local-todo/api && npm run test --workspace @local-todo/web",
+    "lint": "npm run lint --workspace @local-todo/api && npm run lint --workspace @local-todo/web",
+    "start:dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run start:dev --workspace @local-todo/api",
+    "dev:web": "npm start --workspace @local-todo/web",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "concurrently": "^9.1.2"
+  }
+}
