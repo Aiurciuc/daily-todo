@@ -1,16 +1,13 @@
-# Angular specific
-/dist/
-/out-tsc/
-/tmp/
-/coverage/
+# Angular and build output (including workspace packages)
+**/dist/
+**/out-tsc/
+**/tmp/
+**/coverage/
 /e2e/test-output/
-/.angular/
-.angular/
+**/.angular/
 
 # Node modules and dependency files
-/node_modules/
-/package-lock.json
-/yarn.lock
+**/node_modules/
 
 # Environment files
 /.env
@@ -22,7 +19,17 @@
 # TypeScript cache
 *.tsbuildinfo
 
+# NestJS API generated files and local configuration
+/apps/api/.env
+/apps/api/.env.*
+!/apps/api/.env.example
+/apps/api/coverage/
+/apps/api/.eslintcache
+/apps/api/.nestjs/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+.env
