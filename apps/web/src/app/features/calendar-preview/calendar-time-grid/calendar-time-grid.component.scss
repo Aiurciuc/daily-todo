@@ -1,0 +1,140 @@
+@use '../calendar-ui';
+
+:host {
+  display: block;
+}
+
+.calendar-scroll {
+  max-height: 75vh;
+  overflow: auto;
+  border-radius: 16px;
+}
+.calendar {
+  min-width: 650px;
+}
+.calendar.day-view {
+  min-width: 0;
+}
+.calendar-heading,
+.calendar-body {
+  display: grid;
+  grid-template-columns: repeat(calc(var(--day-count) + 1), minmax(0, 1fr));
+}
+.calendar-heading {
+  height: 64px;
+  background: var(--recessed);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.timezone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font:
+    11px 'JetBrains Mono',
+    monospace;
+  color: #74796e;
+}
+.calendar-body {
+  display: grid;
+  grid-template-columns: repeat(calc(var(--day-count) + 1), minmax(0, 1fr));
+}
+.calendar-heading {
+  height: 64px;
+  background: var(--recessed);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.timezone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font:
+    11px 'JetBrains Mono',
+    monospace;
+  color: #74796e;
+}
+.day-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  margin: 0 4px;
+  color: var(--muted);
+}
+.day-heading strong {
+  font:
+    600 16px 'Literata',
+    Georgia,
+    serif;
+  color: var(--ink);
+}
+.day-heading.current {
+  background: #c8e8d066;
+  color: var(--green);
+}
+.day-heading.current strong {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--green);
+  color: white;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+}
+.day-heading.weekend {
+  opacity: 0.7;
+}
+.calendar-body {
+  min-height: 720px;
+}
+.time-axis {
+  border-right: 1px solid var(--line);
+  background: #f5f1ea80;
+}
+.time-axis > div {
+  height: 64px;
+  border-bottom: 1px solid #c4c8bc33;
+  text-align: right;
+  padding: 4px 8px 0 0;
+  font:
+    11px 'JetBrains Mono',
+    monospace;
+  color: var(--muted);
+}
+.day-column {
+  position: relative;
+  border-right: 1px solid #c4c8bc33;
+}
+.day-column:last-child {
+  border-right: 0;
+}
+.day-column.today-column {
+  background: #f5f1ea4d;
+}
+.day-column.weekend {
+  background: #f5f1ea33;
+}
+.hour-slot {
+  height: 64px;
+  width: 100%;
+  display: block;
+  border-bottom: 1px solid #c4c8bc33;
+  padding: 0;
+}
+.hour-slot:hover {
+  background: #f5f1ea66;
+}
+.positioned-task {
+  position: absolute;
+  min-height: 24px;
+}
+.unscheduled-tasks:has(button) {
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

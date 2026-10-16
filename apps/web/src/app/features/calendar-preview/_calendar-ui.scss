@@ -1,0 +1,209 @@
+// Shared, encapsulated calendar controls and typography; imported by the preview components.
+button:not(.terra-button),
+input:not(.terra-field):not(.terra-checkbox),
+select:not(.terra-field) {
+  font: inherit;
+}
+button:not(.terra-button) {
+  cursor: pointer;
+  color: inherit;
+}
+button:not(.terra-button) {
+  border: 0;
+  background: none;
+}
+button:not(.terra-button),
+input:not(.terra-field):not(.terra-checkbox),
+select:not(.terra-field) {
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+button:not(.terra-button):focus-visible,
+input:not(.terra-field):focus-visible,
+select:not(.terra-field):focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3 {
+  font-family: 'Nunito Sans', sans-serif;
+}
+h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+h3 {
+  font-size: 16px;
+  line-height: 1.4;
+}
+h4 {
+  font:
+    500 10px 'JetBrains Mono',
+    monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.icon {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+.icon.small {
+  font-size: 13px;
+}
+.icon-button:not(.terra-button) {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.icon-button:hover {
+  background: #eae6de;
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.primary {
+  background: var(--green);
+  color: white;
+  box-shadow: 0 1px 2px #0000000d;
+}
+.primary:hover {
+  background: #3f6c4c;
+}
+.primary .icon,
+.secondary .icon {
+  font-size: 16px;
+}
+.secondary {
+  background: #f0ece4;
+  border: 1px solid var(--line);
+}
+.secondary:hover {
+  background: #eae6de;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px #2e323003;
+}
+.segments {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--recessed);
+}
+.segments button:not(.terra-button) {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--muted);
+}
+.segments button:hover {
+  background: #eae6de;
+}
+.segments button.active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 1px 2px #00000008;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.inline-actions,
+.heading-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.heading-group {
+  gap: 8px;
+}
+.inline-actions .icon-button:not(.terra-button) {
+  width: 24px;
+  height: 24px;
+}
+.inline-actions .icon {
+  font-size: 16px;
+}
+.muted {
+  color: #4a4e4a66;
+}
+@media (max-width: 800px) {
+  h1 {
+    font-size: 16px;
+  }
+}
+@media (max-width: 520px) {
+  h1 {
+    font-size: 15px;
+  }
+  .segments button:not(.terra-button) {
+    padding: 0 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,65 @@
+<div class="calendar-scroll card">
+  <div class="calendar" [class.day-view]="dayView()" [style.--day-count]="visibleDays().length">
+    <div class="calendar-heading">
+      <div class="timezone">{{ timezone }}</div>
+      @for (day of visibleDays(); track day) {
+        <terra-calendar-day-header
+          [weekday]="weekdays[day]"
+          [day]="(dayDate(day) | date: 'd')!"
+          [active]="day === activeDay()"
+          [accessibleLabel]="(dayDate(day) | date: 'fullDate')!"
+          (selected)="daySelected.emit(day)"
+        />
+      }
+    </div>
+    <div class="unscheduled-tasks" aria-label="Unscheduled tasks">
+      @for (task of tasks(); track task.id) {
+        @if (task.scheduled === false && visibleDays().includes(task.day)) {
+          <button class="outline-button" (click)="taskSelected.emit(task)">
+            {{ weekdays[task.day] }} · {{ task.title }} (unscheduled)
+          </button>
+        }
+      }
+    </div>
+    <div class="calendar-body">
+      <div class="time-axis">
+        @for (hour of hours; track hour) {
+          <div>{{ time(hour) }}</div>
+        }
+      </div>
+      @for (day of visibleDays(); track day) {
+        <div
+          class="day-column"
+          [class.today-column]="day === activeDay()"
+          [class.weekend]="day > 4"
+        >
+          @for (hour of hours; track hour) {
+            <button
+              class="hour-slot"
+              [attr.aria-label]="'Block time on ' + weekdays[day] + ' at ' + time(hour)"
+              (click)="slotSelected.emit({ day, hour })"
+            ></button>
+          }
+          @for (task of tasks(); track task.id) {
+            @if (task.day === day && task.scheduled !== false) {
+              <terra-task-block
+                class="positioned-task"
+                [style.left]="positions().get(task.id)?.left"
+                [style.width]="positions().get(task.id)?.width"
+                [style.top.px]="task.start * 64"
+                [style.height.px]="task.duration * 64"
+                [selected]="task.id === selectedId()"
+                [compact]="task.duration <= 0.5"
+                [taskTitle]="task.title"
+                [timeLabel]="time(task.start) + ' – ' + time(task.start + task.duration)"
+                [shared]="task.shared"
+                [completed]="!!task.completed"
+                (activated)="taskSelected.emit(task)"
+              />
+            }
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,6 @@
+<terra-mini-calendar-widget
+  [month]="month()"
+  [cells]="cells()"
+  (monthMoved)="monthMoved.emit($event)"
+  (dateSelected)="dateSelected.emit($event)"
+/>

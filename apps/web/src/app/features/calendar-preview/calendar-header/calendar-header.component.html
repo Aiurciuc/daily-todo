@@ -1,0 +1,50 @@
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="date-navigation">
+      <button
+        terraButton
+        variant="ghost"
+        size="icon"
+        [attr.aria-label]="'Previous ' + view().toLowerCase()"
+        (click)="periodMoved.emit(-1)"
+      >
+        <terra-icon name="chevron_left" />
+      </button>
+      <button terraButton variant="ghost" class="today-label" (click)="todayRequested.emit()">
+        Today <span>{{ today | date: 'MMM d' }}</span>
+      </button>
+      <button
+        terraButton
+        variant="ghost"
+        size="icon"
+        [attr.aria-label]="'Next ' + view().toLowerCase()"
+        (click)="periodMoved.emit(1)"
+      >
+        <terra-icon name="chevron_right" />
+      </button>
+    </div>
+    <terra-segmented-filter
+      class="top-views"
+      label="Calendar view"
+      [options]="viewOptions"
+      [value]="view()"
+      (valueChanged)="viewChanged.emit($event)"
+    />
+  </div>
+  <div class="topbar-range">
+    <terra-icon name="calendar_today" />
+    @if (view() === 'Day') {
+      {{ activeDate() | date: 'MMM d, yyyy' }}
+    } @else if (view() === 'Month') {
+      {{ month() | date: 'MMMM yyyy' }}
+    } @else {
+      {{ rangeStart() | date: 'MMM d' }} – {{ rangeEnd() | date: 'MMM d, yyyy' }}
+      <span>W{{ rangeStart() | date: 'w' }}</span>
+    }
+  </div>
+  <div class="topbar-right">
+    <button terraButton size="compact" (click)="createRequested.emit()">
+      <terra-icon name="add" /> New Task</button
+    ><span class="profile" aria-label="Calendar"><terra-icon name="person" /></span>
+  </div>
+</header>

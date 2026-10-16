@@ -8,6 +8,15 @@
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss",
+          "type": "component",
+          "changeDetection": "OnPush",
+          "inlineTemplate": false,
+          "inlineStyle": false
+        }
+      },
       "architect": {
         "build": {
           "builder": "@angular/build:application",
@@ -15,13 +24,17 @@
             "outputPath": "dist/web",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": [],
             "tsConfig": "tsconfig.app.json",
             "assets": [],
-            "styles": ["src/styles.css"]
+            "styles": ["src/styles.scss"]
           },
           "configurations": {
-            "production": { "optimization": true, "outputHashing": "all", "budgets": [{ "type": "initial", "maximumWarning": "700kb", "maximumError": "1mb" }] },
+            "production": {
+              "optimization": true,
+              "outputHashing": "all",
+              "budgets": [{ "type": "initial", "maximumWarning": "700kb", "maximumError": "1mb" }]
+            },
             "development": { "optimization": false, "extractLicenses": false, "sourceMap": true }
           },
           "defaultConfiguration": "production"
@@ -37,7 +50,37 @@
         },
         "test": {
           "builder": "@angular/build:unit-test",
-          "options": { "buildTarget": "web:build:development", "tsConfig": "tsconfig.spec.json", "runner": "vitest" }
+          "options": {
+            "buildTarget": "web:build:development",
+            "tsConfig": "tsconfig.spec.json",
+            "runner": "vitest"
+          }
+        }
+      }
+    },
+    "terra-ui": {
+      "projectType": "library",
+      "root": "projects/terra-ui",
+      "sourceRoot": "projects/terra-ui/src",
+      "prefix": "terra",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/terra-ui/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/terra-ui/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/terra-ui/tsconfig.spec.json"
+          }
         }
       }
     }

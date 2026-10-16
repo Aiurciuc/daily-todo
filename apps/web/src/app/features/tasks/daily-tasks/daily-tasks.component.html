@@ -1,0 +1,80 @@
+<main class="panel">
+  <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+    {{ savedAnnouncement() }}
+  </div>
+  <aside class="toasts" aria-label="Save notifications">
+    @for (toast of store.toasts(); track toast.id) {
+      <div class="toast" [class.error]="toast.kind === 'error'">
+        <span [attr.role]="toast.kind === 'error' ? 'alert' : null">{{ toast.message }}</span>
+        @if (toast.kind === 'error' && toast.day === store.day()) {
+          <button type="button" (click)="store.retry()">Reload tasks</button>
+        }
+        <button
+          type="button"
+          aria-label="Dismiss notification"
+          (click)="store.dismissToast(toast.id)"
+        >
+          ×
+        </button>
+      </div>
+    }
+  </aside>
+  <h1>Daily tasks</h1>
+  <nav aria-label="Day navigation">
+    <button
+      type="button"
+      aria-label="Previous day"
+      (click)="store.move(-1)"
+      [disabled]="!store.previousDay()"
+    >
+      ←
+    </button>
+    <h2>
+      <time [attr.datetime]="store.day()">{{ store.day() }}</time>
+    </h2>
+    <button
+      type="button"
+      aria-label="Next day"
+      (click)="store.move(1)"
+      [disabled]="!store.nextDay()"
+    >
+      →
+    </button>
+  </nav>
+
+  <form (submit)="submit($event)" novalidate>
+    <label for="title">New task</label>
+    <div class="form-row">
+      <input
+        id="title"
+        type="text"
+        placeholder="Task title"
+        [formField]="store.taskForm.title"
+        aria-describedby="title-errors"
+      />
+      <button type="submit" [disabled]="!store.canAdd() || store.taskForm().invalid()">Add</button>
+    </div>
+    <div id="title-errors" class="error" aria-live="polite">
+      @if (store.taskForm.title().touched()) {
+        @for (issue of store.taskForm.title().errors(); track issue.kind) {
+          <p>{{ issue.message }}</p>
+        }
+      }
+    </div>
+  </form>
+
+  @if (store.error()) {
+    <div role="alert" class="error">
+      {{ store.error() }}
+      <button type="button" (click)="store.retry()" [disabled]="store.loading()">Retry</button>
+    </div>
+  }
+  <app-task-list
+    [tasks]="store.tasks()"
+    [loading]="store.loading()"
+    [error]="store.error()"
+    [canInteract]="store.canAdd()"
+    (completionToggled)="store.setCompleted($event)"
+    (reorderRequested)="store.reorder($event)"
+  />
+</main>

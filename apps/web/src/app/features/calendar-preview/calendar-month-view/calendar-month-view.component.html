@@ -1,0 +1,22 @@
+<section class="month-view card" aria-label="Month calendar">
+  @for (day of weekdays; track day) {
+    <div class="month-heading">{{ day }}</div>
+  }
+  @for (cell of days(); track $index) {
+    <button
+      class="month-cell"
+      [attr.aria-label]="(cell.date | date: 'fullDate') + taskSummary(cell)"
+      [class.muted]="!cell.current"
+      (click)="dateSelected.emit(cell.date)"
+    >
+      <span>{{ cell.day }}</span>
+      @if (cell.current) {
+        @for (task of tasks(); track task.id) {
+          @if (task.date === dateKey(cell.date)) {
+            <span class="month-task" [class.shared]="task.shared">{{ task.title }}</span>
+          }
+        }
+      }
+    </button>
+  }
+</section>

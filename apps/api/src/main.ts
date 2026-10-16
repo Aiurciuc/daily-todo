@@ -1,12 +1,9 @@
 import 'reflect-metadata';
-import { resolve } from 'node:path';
-import { config } from 'dotenv';
 import { Logger } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-
-config({ path: resolve(process.cwd(), '../../.env') });
-config();
+import { apiConfig } from './config/app.config';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -14,10 +11,13 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api');
   app.enableShutdownHooks();
 
-  const port = Number(process.env.API_PORT ?? 3000);
-  const host = process.env.API_HOST ?? '0.0.0.0';
+  const { port, host } = app.get<ConfigType<typeof apiConfig>>(apiConfig.KEY);
   await app.listen(port, host);
   logger.log(`API listening on ${host}:${port}`);
 }
 
-void bootstrap();
+void bootstrap().catch(() => {
+  // Do not log raw startup errors, which may contain database credentials.
+  new Logger('Bootstrap').error('API startup failed. Check application configuration.');
+  process.exitCode = 1;
+});

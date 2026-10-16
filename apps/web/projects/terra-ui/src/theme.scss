@@ -1,0 +1,200 @@
+// Terra v1.2 tokens. Load once; all selectors are library-prefixed.
+:root {
+  --terra-primary: #4a7c59;
+  --terra-primary-hover: #3d6749;
+  --terra-primary-active: #32523b;
+  --terra-canvas: #fcfbf7;
+  --terra-surface: #ffffff;
+  --terra-recessed: #f6f3eb;
+  --terra-border: #ede8dc;
+  --terra-ink: #3a3429;
+  --terra-muted: #736853;
+  --terra-shared: #d8e6db;
+  --terra-shared-border: #c2d6c6;
+  --terra-shared-ink: #2d4f37;
+  --terra-private: #eae5dc;
+  --terra-private-border: #dbd4c7;
+  --terra-private-ink: #3d3832;
+  --terra-radius: 12px;
+  --terra-radius-modal: 16px;
+  --terra-font: 'Nunito Sans', sans-serif;
+  --terra-mono: 'JetBrains Mono', monospace;
+}
+.terra-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--terra-radius, 12px);
+  background: var(--terra-primary, #4a7c59);
+  color: white;
+  font: 600 12px var(--terra-font, 'Nunito Sans', sans-serif);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    transform 100ms,
+    box-shadow 150ms;
+  text-decoration: none;
+}
+.terra-button:hover:not(:disabled) {
+  background: var(--terra-primary-hover, #3d6749);
+  box-shadow: 0 4px 6px #0001;
+}
+.terra-button:active:not(:disabled) {
+  background: var(--terra-primary-active, #32523b);
+  transform: scale(0.95);
+  box-shadow: inset 0 2px 4px #0001;
+}
+.terra-button:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 4px #cbd9cd;
+}
+.terra-button:disabled {
+  background: #cbd9cd;
+  color: #759d7f;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.terra-button[data-size='compact'] {
+  min-height: 32px;
+  padding: 0 12px;
+}
+.terra-button[data-size='icon'] {
+  min-height: 32px;
+  width: 32px;
+  padding: 0;
+  border-radius: 8px;
+}
+.terra-button[data-variant='secondary'] {
+  background: #4a7c591a;
+  color: #32523b;
+}
+.terra-button[data-variant='secondary']:hover:not(:disabled) {
+  background: #4a7c5933;
+  color: #2a4231;
+  box-shadow: none;
+}
+.terra-button[data-variant='secondary']:active:not(:disabled) {
+  background: #4a7c594d;
+  color: #233729;
+}
+.terra-button[data-variant='secondary']:focus-visible {
+  outline: 2px solid var(--terra-primary, #4a7c59);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.terra-button[data-variant='outlined'] {
+  background: white;
+  color: #554c3c;
+  border-color: #ede8dc;
+}
+.terra-button[data-variant='outlined']:hover:not(:disabled) {
+  background: #f6f3eb;
+  border-color: #dfd8c7;
+  box-shadow: none;
+}
+.terra-button[data-variant='outlined']:active:not(:disabled) {
+  background: #ede8dc;
+  border-color: #beb39d;
+}
+.terra-button[data-variant='outlined']:focus-visible {
+  border-color: var(--terra-primary, #4a7c59);
+  box-shadow: 0 0 0 2px #cbd9cd;
+}
+.terra-button[data-variant='ghost'] {
+  background: transparent;
+  color: #736853;
+}
+.terra-button[data-variant='ghost']:hover:not(:disabled) {
+  background: #f6f3eb;
+  color: #242019;
+  box-shadow: none;
+}
+.terra-button[data-variant='ghost']:active:not(:disabled) {
+  background: #ede8dc;
+}
+.terra-button:is(
+    [data-variant='secondary'],
+    [data-variant='outlined'],
+    [data-variant='ghost']
+  ):disabled {
+  background: #ede8dc;
+  color: #beb39d;
+}
+.terra-button kbd {
+  font: 500 10px var(--terra-mono, monospace);
+  padding: 1px 4px;
+  background: #ffffff33;
+  border-radius: 4px;
+}
+.terra-field {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 12px;
+  min-height: 36px;
+  border: 1px solid var(--terra-border, #ede8dc);
+  border-radius: 12px;
+  background: var(--terra-canvas, #fcfbf7);
+  color: var(--terra-ink, #3a3429);
+  font: 12px var(--terra-font, 'Nunito Sans', sans-serif);
+}
+.terra-field:focus {
+  outline: 0;
+  background: white;
+  border-color: var(--terra-primary, #4a7c59);
+  box-shadow: 0 0 0 2px #cbd9cd;
+}
+.terra-field[aria-invalid='true'] {
+  border-color: #f87171;
+  background: #fef2f280;
+  box-shadow: 0 0 0 2px #fee2e2;
+  color: #7f1d1d;
+}
+.terra-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.terra-field-error {
+  font: 12px var(--terra-font, 'Nunito Sans', sans-serif);
+  color: #dc2626;
+}
+.terra-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--terra-primary, #4a7c59);
+  cursor: pointer;
+}
+.terra-checkbox:focus-visible {
+  outline: 2px solid var(--terra-primary, #4a7c59);
+  outline-offset: 3px;
+}
+.terra-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.terra-radio-card {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--terra-border, #ede8dc);
+  border-radius: 12px;
+  background: var(--terra-canvas, #fcfbf7);
+  cursor: pointer;
+}
+.terra-radio-card:has(input:checked) {
+  border-color: var(--terra-primary, #4a7c59);
+  background: #f4f7f4;
+}
+.terra-radio-card:has(input:focus-visible) {
+  outline: 2px solid #cbd9cd;
+  outline-offset: 2px;
+}
+.terra-radio-card:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

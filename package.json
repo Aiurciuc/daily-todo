@@ -2,19 +2,37 @@
   "name": "local-todo",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/api", "apps/web"],
-  "engines": { "node": ">=22 <25" },
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22 <25"
+  },
   "scripts": {
     "build": "npm run build --workspace @local-todo/api && npm run build --workspace @local-todo/web",
+    "db:generate": "npm run db:generate --workspace @local-todo/api",
+    "db:migrate": "npm run db:migrate --workspace @local-todo/api",
+    "db:migrate:dev": "npm run db:migrate:dev --workspace @local-todo/api",
+    "test:integration": "npm run test:integration --workspace @local-todo/api",
     "test": "npm run test --workspace @local-todo/api && npm run test --workspace @local-todo/web",
     "lint": "npm run lint --workspace @local-todo/api && npm run lint --workspace @local-todo/web",
+    "format": "prettier --write \"apps/**/*.{ts,html,scss,json}\" \"package.json\" \"compose.yaml\" \"playwright.config.ts\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,html,scss,json}\" \"package.json\" \"compose.yaml\" \"playwright.config.ts\"",
     "start:dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "npm run start:dev --workspace @local-todo/api",
     "dev:web": "npm start --workspace @local-todo/web",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.52.0",
-    "concurrently": "^9.1.2"
+    "angular-eslint": "^22.6.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2"
   }
 }

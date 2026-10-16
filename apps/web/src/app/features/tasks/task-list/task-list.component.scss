@@ -1,0 +1,92 @@
+:host {
+  display: block;
+}
+
+.task-area {
+  min-height: 100px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 22px 0 0;
+}
+li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+li label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+li input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.drag-handle {
+  flex: none;
+  cursor: grab;
+  touch-action: none;
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  background: #eef2f7;
+  color: #285ea8;
+  padding: 8px 12px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #285ea8;
+  outline-offset: 3px;
+}
+
+.cdk-drag-preview {
+  box-sizing: border-box;
+  list-style: none;
+  background: white;
+  padding: 13px;
+  border-radius: 9px;
+  box-shadow: 0 8px 24px #19335130;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.25;
+}
+
+.cdk-drag-animating,
+.cdk-drop-list-dragging li:not(.cdk-drag-placeholder) {
+  transition: transform 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cdk-drag-animating,
+  .cdk-drop-list-dragging li:not(.cdk-drag-placeholder) {
+    transition: none;
+  }
+}
+
+.done span {
+  color: #64748b;
+  text-decoration: line-through;
+}
+.empty {
+  margin-top: 25px;
+  color: #64748b;
+}

@@ -1,0 +1,22 @@
+@use '../calendar-ui';
+:host {
+  display: block;
+}
+.urgent {
+  padding: 18px;
+}
+.card-heading {
+  margin-bottom: 16px;
+}
+.next-hours {
+  font:
+    10px 'JetBrains Mono',
+    monospace;
+  color: var(--muted);
+}
+.urgent-dot {
+  background: #c2410c;
+}
+terra-urgent-task-row {
+  margin-top: 10px;
+}

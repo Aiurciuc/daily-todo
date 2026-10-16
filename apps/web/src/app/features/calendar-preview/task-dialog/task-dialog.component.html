@@ -1,0 +1,117 @@
+<terra-modal [label]="editing() ? 'Edit Calendar Task' : 'Create New Calendar Task'">
+  <form #taskForm (submit)="saveTask($event)">
+    <div class="card-heading">
+      <h2>{{ editing() ? 'Edit Calendar Task' : 'Create New Calendar Task' }}</h2>
+      <button
+        terraButton
+        variant="ghost"
+        size="icon"
+        aria-label="Close dialog"
+        [disabled]="saving()"
+        (click)="close()"
+      >
+        <terra-icon name="close" />
+      </button>
+    </div>
+    <p class="dialog-description">
+      Tasks are saved to your calendar. Shared/private are labels, not access permissions.
+    </p>
+    <fieldset [disabled]="saving()">
+      <label for="task-title">Task name</label>
+      <input
+        terraField
+        id="task-title"
+        name="title"
+        placeholder="What are you working on?"
+        required
+        maxlength="200"
+        autofocus
+        [invalid]="!!titleError()"
+        [attr.aria-describedby]="titleError() ? 'task-title-error' : null"
+      />
+      @if (titleError()) {
+        <p id="task-title-error" class="terra-field-error" role="alert">{{ titleError() }}</p>
+      }
+      <label for="task-date">Date</label
+      ><input
+        terraField
+        id="task-date"
+        name="date"
+        type="date"
+        min="0001-01-01"
+        max="9999-12-31"
+        required
+      />
+      <label
+        ><input
+          terraCheckbox
+          type="checkbox"
+          name="unscheduled"
+          [checked]="unscheduled()"
+          (change)="unscheduled.set($any($event.target).checked)"
+        />
+        No scheduled time</label
+      >
+      <div class="form-grid">
+        <div>
+          <label for="task-time">Start time</label
+          ><input
+            terraField
+            id="task-time"
+            name="time"
+            type="time"
+            value="09:00"
+            step="60"
+            [disabled]="unscheduled()"
+            [required]="!unscheduled()"
+          />
+        </div>
+        <div>
+          <label for="task-duration">Duration (minutes)</label
+          ><input
+            terraField
+            id="task-duration"
+            name="duration"
+            type="number"
+            value="60"
+            min="1"
+            max="1440"
+            step="1"
+            [disabled]="unscheduled()"
+            [required]="!unscheduled()"
+          />
+        </div>
+      </div>
+      <label for="task-notes">Notes</label
+      ><textarea terraField id="task-notes" name="notes" maxlength="10000" rows="3"></textarea>
+      <label for="task-shared-with">Team label (optional)</label
+      ><input terraField id="task-shared-with" name="sharedWith" maxlength="120" />
+      <fieldset>
+        <legend>Task Visibility</legend>
+        <div class="form-grid">
+          <label terraRadioCard
+            ><input terraCheckbox type="radio" name="visibility" value="SHARED" /><span
+              ><strong>Shared</strong><small>Shared calendar label.</small></span
+            ></label
+          >
+          <label terraRadioCard
+            ><input terraCheckbox type="radio" name="visibility" value="PRIVATE" checked /><span
+              ><strong>Private</strong><small>Personal calendar label.</small></span
+            ></label
+          >
+        </div>
+      </fieldset>
+    </fieldset>
+    @if (error()) {
+      <p class="terra-field-error" role="alert">{{ error() }}</p>
+    }
+    <div class="modal-actions">
+      <button terraButton variant="outlined" [disabled]="saving()" (click)="close()">Cancel</button>
+      <button terraButton type="submit" [disabled]="saving()">
+        <terra-icon name="save" />{{
+          saving() ? 'Saving…' : editing() ? 'Save changes' : 'Create task'
+        }}
+      </button>
+    </div>
+  </form>
+</terra-modal>

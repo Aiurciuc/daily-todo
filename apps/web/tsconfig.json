@@ -13,6 +13,9 @@
     "target": "ES2022",
     "module": "preserve",
     "lib": ["ES2022", "dom"],
+    "paths": {
+      "terra-ui": ["./projects/terra-ui/src/public-api.ts"]
+    },
     "useDefineForClassFields": false
   },
   "angularCompilerOptions": {
@@ -20,5 +23,13 @@
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true
-  }
+  },
+  "references": [
+    {
+      "path": "./projects/terra-ui/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/terra-ui/tsconfig.spec.json"
+    }
+  ]
 }

@@ -1,0 +1,112 @@
+@use '../calendar-ui';
+
+:host {
+  display: block;
+}
+
+.topbar {
+  position: relative;
+  height: 56px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffffd9;
+  border-bottom: 1px solid var(--line);
+}
+.topbar-left,
+.topbar-right,
+.date-navigation {
+  display: flex;
+  align-items: center;
+}
+.topbar-left {
+  gap: 24px;
+}
+.topbar-right {
+  gap: 12px;
+}
+.date-navigation {
+  gap: 4px;
+}
+.today-label {
+  font:
+    600 14px 'Nunito Sans',
+    sans-serif;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.today-label span {
+  font:
+    400 12px 'Nunito Sans',
+    sans-serif;
+  color: var(--muted);
+}
+kbd {
+  font:
+    10px 'JetBrains Mono',
+    monospace;
+  background: #0000001a;
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-left: 5px;
+  color: #ffffffbf;
+}
+.profile {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #eae6de;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.top-views {
+  background: #f0ece4;
+}
+.top-views button {
+  padding: 0 12px;
+}
+.topbar-range {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--terra-muted);
+  font-size: 12px;
+}
+.topbar-range terra-icon {
+  font-size: 16px;
+}
+.topbar-range span {
+  font: 10px var(--terra-mono);
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--terra-recessed);
+}
+@media (max-width: 1000px) {
+  .topbar-range {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .topbar {
+    padding: 0 12px;
+  }
+  .topbar-left {
+    gap: 8px;
+  }
+  .top-views,
+  kbd,
+  .profile {
+    display: none;
+  }
+  .topbar-right {
+    gap: 0;
+  }
+}

@@ -1,0 +1,109 @@
+<app-calendar-header
+  [view]="view()"
+  [rangeStart]="rangeStart()"
+  [rangeEnd]="rangeEnd()"
+  [offset]="offset()"
+  [activeDate]="activeDate()"
+  [month]="miniMonth()"
+  (viewChanged)="view.set($event)"
+  (periodMoved)="movePeriod($event)"
+  (todayRequested)="resetToday()"
+  (createRequested)="openTask()"
+/>
+<main class="dashboard">
+  <section
+    class="workspace"
+    aria-label="Calendar workspace"
+    [attr.aria-busy]="resource.isLoading()"
+  >
+    <app-calendar-toolbar
+      [view]="view()"
+      [filter]="filter()"
+      [sharedCount]="sharedCount()"
+      [privateCount]="privateCount()"
+      [rangeStart]="rangeStart()"
+      [rangeEnd]="rangeEnd()"
+      [month]="miniMonth()"
+      [offset]="offset()"
+      [activeDate]="activeDate()"
+      (viewChanged)="view.set($event)"
+      (filterChanged)="filter.set($event)"
+      (periodMoved)="movePeriod($event)"
+      (todayRequested)="resetToday()"
+      (createRequested)="openTask()"
+    />
+    @if (resource.isLoading()) {
+      <p class="state-message" role="status">Loading tasks…</p>
+    }
+    @if (resource.error()) {
+      <div class="state-message" role="alert">
+        Unable to load tasks. Check the API/database connection.
+        <button class="outline-button" (click)="resource.reload()">Retry</button>
+      </div>
+    } @else {
+      @if (!resource.isLoading() && visibleTasks().length === 0) {
+        <p class="state-message">
+          No tasks for this period and filter. Create a task to get started.
+        </p>
+      }
+      @if (view() !== 'Month') {
+        <app-calendar-time-grid
+          [tasks]="visibleTasks()"
+          [selectedId]="selectedId()"
+          [dayView]="view() === 'Day'"
+          [activeDay]="activeDay()"
+          [offset]="offset()"
+          (daySelected)="activeDay.set($event)"
+          (taskSelected)="selectTask($event)"
+          (slotSelected)="activeDay.set($event.day); openTask($event.day, $event.hour)"
+        />
+      } @else {
+        <app-calendar-month-view
+          [days]="monthDays()"
+          [tasks]="visibleTasks()"
+          (dateSelected)="chooseDate($event); view.set('Day')"
+        />
+      }
+    }
+    @if (mutationError()) {
+      <p class="state-message" role="alert">{{ mutationError() }}</p>
+    }
+  </section>
+  <aside class="inspector" aria-label="Calendar and task details">
+    <app-mini-calendar
+      [month]="miniMonth()"
+      [days]="monthDays()"
+      [activeDay]="activeDay()"
+      [offset]="offset()"
+      [monthOffset]="monthOffset()"
+      (monthMoved)="moveMonth($event)"
+      (dateSelected)="chooseDate($event)"
+    />
+    @if (selected(); as task) {
+      <div [attr.inert]="saving() ? '' : null">
+        <app-task-details
+          [task]="task"
+          [selectedDate]="selectedDate()"
+          (completionToggled)="toggleCompleted()"
+          (editRequested)="editTask()"
+          (linkRequested)="copyLink()"
+        />
+        <button class="outline-button" (click)="deleteTask()" [disabled]="saving()">
+          Delete task
+        </button>
+      </div>
+    } @else {
+      <p class="state-message">Select a task to see its details.</p>
+    }
+    <app-urgent-tasks [tasks]="urgentTasks()" (taskSelected)="selectTask($event)" />
+  </aside>
+</main>
+@if (notice()) {
+  <div class="notice" role="status">
+    {{ notice() }}
+    <button class="icon-button" aria-label="Dismiss message" (click)="notice.set('')">
+      <span class="icon">close</span>
+    </button>
+  </div>
+}
+<app-task-dialog [saving]="saving()" [error]="mutationError()" (taskCreated)="saveTask($event)" />

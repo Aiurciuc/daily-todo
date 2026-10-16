@@ -13,11 +13,23 @@
       "skillPath": "angular-new-app/SKILL.md",
       "computedHash": "d9f712544847ab80ef7ed20043820afd275c394ca05340c2f20a0f051e35d945"
     },
+    "design-md": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/stitch-utilities/skills/design-md/SKILL.md",
+      "computedHash": "44af3e6e89a42a765d9cebf943f1e2ff3cdf43d1958341eb43fb7b74116f6691"
+    },
     "nestjs-best-practices": {
       "source": "Kadajett/agent-nestjs-skills",
       "sourceType": "github",
       "skillPath": "skills/nestjs-best-practices/SKILL.md",
       "computedHash": "29c326e77d1462ed9526996acae5da0cf4003146982abc8c67378f5dbad6b181"
+    },
+    "ngrx-signal-store": {
+      "source": "ojrojas/AgentsInstructions",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ngrx-signal-store/SKILL.md",
+      "computedHash": "c977ffa2202f1aca4387bd5ba0f337ab1803ce807892158fe0c2c64f79e4b8e1"
     }
   }
 }

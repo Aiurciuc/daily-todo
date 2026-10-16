@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskVisibility {
+  PRIVATE
+  SHARED
+}
+
+model Task {
+  id              Int            @id @default(autoincrement())
+  title           String         @db.VarChar(200)
+  date            DateTime       @map("task_date") @db.Date
+  completed       Boolean        @default(false)
+  position        Int            @default(0)
+  // Floating local time within date; null pairs preserve existing unscheduled tasks.
+  startMinute     Int?           @map("start_minute")
+  durationMinutes Int?           @map("duration_minutes")
+  visibility      TaskVisibility @default(PRIVATE)
+  notes           String?        @db.VarChar(10000)
+  sharedWith      String?        @map("shared_with") @db.VarChar(120)
+
+  @@index([date])
+  @@index([date, visibility, startMinute])
+  @@map("tasks")
+}

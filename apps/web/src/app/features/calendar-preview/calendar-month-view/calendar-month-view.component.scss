@@ -1,0 +1,51 @@
+@use '../calendar-ui';
+
+:host {
+  display: block;
+}
+
+.month-view {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  overflow: hidden;
+}
+.month-heading {
+  padding: 16px;
+  text-align: center;
+  background: var(--recessed);
+}
+.month-cell {
+  min-height: 125px;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  text-align: left;
+}
+.month-cell:hover {
+  background: var(--recessed);
+}
+.month-task {
+  background: #f0e8db;
+  border-radius: 4px;
+  padding: 4px;
+  font-size: 10px;
+}
+.month-task.shared {
+  background: var(--green-light);
+}
+@media (max-width: 520px) {
+  .month-cell {
+    min-height: 90px;
+    padding: 4px;
+  }
+  .month-heading {
+    padding: 10px 0;
+  }
+  .month-task {
+    font-size: 8px;
+  }
+}

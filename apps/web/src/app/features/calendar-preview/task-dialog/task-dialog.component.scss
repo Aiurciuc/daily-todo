@@ -1,0 +1,58 @@
+:host {
+  display: block;
+}
+h2 {
+  font:
+    700 16px 'Nunito Sans',
+    sans-serif;
+  margin: 0;
+}
+.card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dialog-description {
+  color: #736853;
+  line-height: 1.6;
+  margin: 12px 0 20px;
+}
+label:not([terraRadioCard]) {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.duration {
+  margin-top: 16px;
+}
+fieldset {
+  padding: 0;
+  margin: 20px 0 0;
+  border: 0;
+}
+legend {
+  font-weight: 700;
+}
+.form-grid small {
+  display: block;
+  font-size: 10px;
+  color: #736853;
+  margin-top: 4px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+@media (max-width: 400px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
