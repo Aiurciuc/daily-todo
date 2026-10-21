@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { formatDate } from '@angular/common';
-import { TerraTaskInspectorCard, TerraTaskDetails } from 'terra-ui';
+import { TerraButton, TerraIcon, TerraTaskInspectorCard, TerraTaskDetails } from 'terra-ui';
 import { CalendarTask } from '../calendar-preview.models';
 import { formatCalendarTime } from '../calendar-preview.utils';
 @Component({
   selector: 'app-task-details',
-  imports: [TerraTaskInspectorCard],
+  imports: [TerraButton, TerraIcon, TerraTaskInspectorCard],
   templateUrl: './task-details.component.html',
   styleUrl: './task-details.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -13,6 +13,8 @@ import { formatCalendarTime } from '../calendar-preview.utils';
 export class TaskDetailsComponent {
   readonly task = input.required<CalendarTask>();
   readonly selectedDate = input.required<Date>();
+  readonly saving = input(false);
+  readonly deleteRequested = output<void>();
   readonly completionToggled = output<void>();
   readonly editRequested = output<void>();
   readonly linkRequested = output<void>();

@@ -84,13 +84,12 @@
         <app-task-details
           [task]="task"
           [selectedDate]="selectedDate()"
+          [saving]="saving()"
+          (deleteRequested)="deleteTask()"
           (completionToggled)="toggleCompleted()"
           (editRequested)="editTask()"
           (linkRequested)="copyLink()"
         />
-        <button class="outline-button" (click)="deleteTask()" [disabled]="saving()">
-          Delete task
-        </button>
       </div>
     } @else {
       <p class="state-message">Select a task to see its details.</p>

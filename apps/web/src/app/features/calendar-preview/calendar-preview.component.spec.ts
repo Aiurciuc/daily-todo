@@ -126,16 +126,35 @@ describe('API-backed calendar', () => {
     expect(element.querySelector('.details h3')?.textContent).toBe('Updated title');
     expect(element.querySelector('.unscheduled-tasks')?.textContent).toContain('Updated title');
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    Array.from(element.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Delete task')!
-      .click();
+    const deleteButton = element.querySelector<HTMLButtonElement>(
+      'app-task-details .details .detail-actions [aria-label="Delete task"]',
+    )!;
+    expect(deleteButton.classList.contains('terra-button')).toBe(true);
+    expect(deleteButton.getAttribute('data-variant')).toBe('outlined');
+    expect(deleteButton.querySelector('terra-icon')).not.toBeNull();
+    deleteButton.click();
     const deletion = http.expectOne('/api/tasks/42');
     expect(deletion.request.method).toBe('DELETE');
+    await fixture.whenStable();
+    expect(deleteButton.disabled).toBe(true);
     deletion.flush(null);
     await TestBed.tick();
     http.expectOne((req) => req.method === 'GET').flush([]);
     await fixture.whenStable();
     expect(element.querySelector('.details')).toBeNull();
+  });
+
+  it('keeps the task when deletion from the details card is canceled', async () => {
+    const { fixture, http, element } = await render();
+    element.querySelector<HTMLButtonElement>('.calendar-task')!.click();
+    await fixture.whenStable();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    element
+      .querySelector<HTMLButtonElement>('app-task-details [aria-label="Delete task"]')!
+      .click();
+    await fixture.whenStable();
+    http.expectNone((req) => req.method === 'DELETE');
+    expect(element.querySelector('.details h3')?.textContent).toBe(task.title);
   });
 
   it('loads new ranges rather than carrying events into other weeks, and retries failures', async () => {

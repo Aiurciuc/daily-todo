@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { CalendarTimeGridComponent } from './calendar-time-grid.component';
 import { CalendarTask, TimeSlot } from '../calendar-preview.models';
 
@@ -13,6 +14,16 @@ const task: CalendarTask = {
 };
 
 describe('CalendarTimeGridComponent', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date(2026, 9, 14, 10, 30)); // Wednesday, local calendar time.
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.useRealTimers();
+  });
+
   async function render() {
     const fixture = TestBed.createComponent(CalendarTimeGridComponent);
     fixture.componentRef.setInput('tasks', [task]);
@@ -22,6 +33,60 @@ describe('CalendarTimeGridComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     return { fixture, element };
   }
+
+  it('shows the current-time bar only in today’s column at the correct minute', async () => {
+    const { element } = await render();
+    const markers = element.querySelectorAll<HTMLElement>('terra-now-indicator');
+    expect(markers).toHaveLength(1);
+    expect(markers[0].parentElement).toBe(element.querySelectorAll('.day-column')[2]);
+    expect(markers[0].style.top).toBe('672px');
+    expect(markers[0].getAttribute('aria-label')).toBe('Current time 10:30');
+  });
+
+  it('updates the bar every minute and stops the clock on destruction', async () => {
+    const { fixture, element } = await render();
+    vi.advanceTimersByTime(60_000);
+    await fixture.whenStable();
+    const marker = element.querySelector<HTMLElement>('terra-now-indicator')!;
+    expect(marker.style.top).toBe(`${(10 + 31 / 60) * 64}px`);
+    expect(marker.getAttribute('aria-label')).toBe('Current time 10:31');
+    expect(vi.getTimerCount()).toBe(1);
+    fixture.destroy();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('hides the bar outside the current week and on other days in Day view', async () => {
+    const { fixture, element } = await render();
+    fixture.componentRef.setInput('offset', 1);
+    await fixture.whenStable();
+    expect(element.querySelector('terra-now-indicator')).toBeNull();
+    fixture.componentRef.setInput('offset', -1);
+    await fixture.whenStable();
+    expect(element.querySelector('terra-now-indicator')).toBeNull();
+    fixture.componentRef.setInput('offset', 0);
+    fixture.componentRef.setInput('dayView', true);
+    await fixture.whenStable();
+    expect(element.querySelector('terra-now-indicator')).toBeNull();
+    fixture.componentRef.setInput('activeDay', 2);
+    await fixture.whenStable();
+    expect(element.querySelectorAll('terra-now-indicator')).toHaveLength(1);
+  });
+
+  it('moves the bar to the next day at midnight', async () => {
+    vi.setSystemTime(new Date(2026, 9, 14, 23, 59));
+    const { fixture, element } = await render();
+    vi.advanceTimersByTime(60_000);
+    await fixture.whenStable();
+    const marker = element.querySelector<HTMLElement>('terra-now-indicator')!;
+    expect(marker.parentElement).toBe(element.querySelectorAll('.day-column')[3]);
+    expect(marker.style.top).toBe('0px');
+    expect(marker.getAttribute('aria-label')).toBe('Current time 00:00');
+  });
+
+  it('opens with the timeline scrolled to 07:00', async () => {
+    const { element } = await render();
+    expect(element.querySelector<HTMLElement>('.calendar-scroll')?.scrollTop).toBe(7 * 64);
+  });
 
   it('emits task and slot selections without owning calendar state', async () => {
     const { fixture, element } = await render();

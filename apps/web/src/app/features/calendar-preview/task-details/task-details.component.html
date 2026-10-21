@@ -3,4 +3,15 @@
   (completionToggled)="completionToggled.emit()"
   (linkRequested)="linkRequested.emit()"
   (editRequested)="editRequested.emit()"
-/>
+>
+  <button
+    inspectorAction
+    terraButton
+    variant="outlined"
+    aria-label="Delete task"
+    [disabled]="saving()"
+    (click)="deleteRequested.emit()"
+  >
+    <terra-icon name="delete" /> Delete task
+  </button>
+</terra-task-inspector-card>

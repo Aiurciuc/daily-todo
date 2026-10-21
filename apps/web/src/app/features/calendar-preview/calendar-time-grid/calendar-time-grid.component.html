@@ -1,4 +1,4 @@
-<div class="calendar-scroll card">
+<div #calendarScroll class="calendar-scroll card">
   <div class="calendar" [class.day-view]="dayView()" [style.--day-count]="visibleDays().length">
     <div class="calendar-heading">
       <div class="timezone">{{ timezone }}</div>
@@ -39,6 +39,11 @@
               [attr.aria-label]="'Block time on ' + weekdays[day] + ' at ' + time(hour)"
               (click)="slotSelected.emit({ day, hour })"
             ></button>
+          }
+          @if (nowMarker(); as marker) {
+            @if (marker.day === day) {
+              <terra-now-indicator [style.top.px]="marker.top" [label]="marker.label" />
+            }
           }
           @for (task of tasks(); track task.id) {
             @if (task.day === day && task.scheduled !== false) {

@@ -18,6 +18,12 @@ The API uses feature modules with explicit dependencies. Task controllers accept
 
 API checks: `npm run typecheck --workspace @local-todo/api`, `npm test --workspace @local-todo/api`, `npm run lint --workspace @local-todo/api`, and `npm run build --workspace @local-todo/api`. Unit and Supertest HTTP tests use mocks; PostgreSQL integration tests remain opt-in.
 
+### Swagger and Bruno
+
+With the API running, open Swagger UI at **http://localhost:3000/api/docs** (or the configured API host and port). The OpenAPI document is served at **http://localhost:3000/api/docs-json**. Swagger lists the API routes and lets you try them against the running server.
+
+To load every API route into Bruno, use **Import** → **URL** (or **OpenAPI**) and import `http://localhost:3000/api/docs-json`; choose or create a Bruno collection when prompted. This imports the routes from the live OpenAPI document, so newly documented endpoints are included on the next import. The app has no authentication; run it only on a trusted local network.
+
 ## Calendar task data
 
 The calendar uses the real API and PostgreSQL; it contains no seeded tasks or fabricated calendar details. An empty database shows an empty calendar. Existing date-only create, completion, and reorder requests remain compatible.

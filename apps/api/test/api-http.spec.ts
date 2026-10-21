@@ -82,7 +82,9 @@ describe('API HTTP contracts', () => {
 
   it('replaces editable details and deletes tasks without changing the completion endpoint', async () => {
     repository.update.mockResolvedValue({ ...task, title: 'Edited', completed: true });
-    await request(server).put('/api/tasks/1').send({ title: ' Edited ', date: '0001-01-01' })
+    await request(server)
+      .put('/api/tasks/1')
+      .send({ title: ' Edited ', date: '0001-01-01' })
       .expect(200, { ...publicTask, title: 'Edited', completed: true });
     expect(repository.update).toHaveBeenCalledWith(1, 'Edited', task.date, taskDetails);
     await request(server).delete('/api/tasks/1').expect(204);
@@ -92,9 +94,15 @@ describe('API HTTP contracts', () => {
       { title: 'Invalid', date: '2024-01-01', startMinute: 1439, durationMinutes: 2 },
       { title: 'Invalid', date: '2024-01-01', project: 'Removed' },
       { title: 'Invalid', date: '2024-01-01', completed: true },
-    ]) await request(server).put('/api/tasks/1').send(body).expect(400);
+    ])
+      await request(server).put('/api/tasks/1').send(body).expect(400);
     await request(server).delete('/api/tasks/abc').expect(400);
-    repository.remove.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('missing', { code: 'P2025', clientVersion: '6.16.3' }));
+    repository.remove.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('missing', {
+        code: 'P2025',
+        clientVersion: '6.16.3',
+      }),
+    );
     await request(server).delete('/api/tasks/999').expect(404);
   });
 

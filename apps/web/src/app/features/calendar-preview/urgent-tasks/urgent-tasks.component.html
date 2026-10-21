@@ -1,20 +1,20 @@
 <section class="urgent card">
   <div class="card-heading">
     <div class="heading-group"><h2>Upcoming Tasks</h2></div>
-    <span class="next-hours">This period</span>
+    <span class="next-hours">Next 3</span>
   </div>
   @for (task of tasks(); track task.id) {
     <terra-urgent-task-row
       [taskTitle]="task.title"
       [shared]="task.shared"
       [category]="task.shared ? 'Shared' : 'Private'"
-      [deadline]="(task.date | date: 'MMM d')!"
+      [deadline]="(task.date | date: 'EEE, MMM d')!"
       [urgent]="false"
       [context]="task.sharedWith || ''"
-      [timeLabel]="task.scheduled === false ? 'Unscheduled' : time(task.start)"
+      [timeLabel]="time(task.start)"
       (activated)="taskSelected.emit(task)"
     />
   } @empty {
-    <p>No upcoming tasks in this period.</p>
+    <p>No upcoming tasks.</p>
   }
 </section>

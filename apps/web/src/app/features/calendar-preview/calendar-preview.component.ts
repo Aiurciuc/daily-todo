@@ -107,14 +107,23 @@ export class CalendarPreviewComponent {
   protected readonly selectedDate = computed(() =>
     localDate(this.selected()?.date ?? dateKey(this.activeDate())),
   );
-  protected readonly urgentTasks = computed(() =>
-    this.tasks()
-      .filter((task) => !task.completed && task.date >= dateKey(new Date()))
+  private readonly clock = signal(Date.now());
+  protected readonly urgentTasks = computed(() => {
+    const now = this.clock();
+    return this.tasks()
+      .filter((task) => {
+        if (task.completed || task.scheduled === false) return false;
+        const [year, month, day] = task.date.split('-').map(Number);
+        const start = new Date(year, month - 1, day, Math.floor(task.start), (task.start % 1) * 60);
+        return start.getTime() >= now;
+      })
       .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)
-      .slice(0, 5),
-  );
+      .slice(0, 3);
+  });
 
   constructor() {
+    const clockTimer = window.setInterval(() => this.clock.set(Date.now()), 60_000);
+    this.destroyRef.onDestroy(() => window.clearInterval(clockTimer));
     const params = new URLSearchParams(window.location.search);
     const date = params.get('date');
     if (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && dateKey(localDate(date)) === date) {
