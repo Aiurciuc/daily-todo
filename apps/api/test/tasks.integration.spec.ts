@@ -23,11 +23,29 @@ const database = new PrismaClient({
 });
 
 describe('real PostgreSQL task persistence (disposable test database only)', () => {
+  let ownerId: number;
+  let otherOwnerId: number;
+
   beforeAll(async () => {
     await database.$connect();
+    const suffix = `${Date.now()}-${Math.random()}`;
+    const owner = await database.user.create({
+      data: { name: 'Task owner', email: `owner-${suffix}@example.com`, passwordHash: 'unused' },
+    });
+    ownerId = owner.id;
+    const other = await database.user.create({
+      data: { name: 'Other owner', email: `other-${suffix}@example.com`, passwordHash: 'unused' },
+    });
+    otherOwnerId = other.id;
   });
   afterAll(async () => {
-    await database.$disconnect();
+    try {
+      const userIds = [ownerId, otherOwnerId].filter((id) => id !== undefined);
+      await database.task.deleteMany({ where: { ownerId: { in: userIds } } });
+      await database.user.deleteMany({ where: { id: { in: userIds } } });
+    } finally {
+      await database.$disconnect();
+    }
   });
 
   it('persists calendar metadata, range boundaries, filters and reorders', async () => {
@@ -37,7 +55,7 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
     const title = `calendar-integration-${Date.now()}`;
     const ids: number[] = [];
     try {
-      const shared = await repository.create(title, date, {
+      const shared = await repository.create(ownerId, title, date, {
         ...taskDetails,
         startMinute: 570,
         durationMinutes: 90,
@@ -46,26 +64,26 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
         sharedWith: 'Design Team',
       });
       ids.push(shared.id);
-      const privateTask = await repository.create(title, date);
+      const privateTask = await repository.create(ownerId, title, date);
       ids.push(privateTask.id);
-      const boundary = await repository.create(title, end);
+      const boundary = await repository.create(ownerId, title, end);
       ids.push(boundary.id);
       const found = (
-        await repository.findByRange(date, end, { visibility: TaskVisibility.SHARED })
+        await repository.findByRange(ownerId, date, end, { visibility: TaskVisibility.SHARED })
       ).filter((task) => ids.includes(task.id));
       expect(found).toEqual([shared]);
-      expect(await repository.setCompleted(shared.id, true)).toMatchObject({
+      expect(await repository.setCompleted(ownerId, shared.id, true)).toMatchObject({
         completed: true,
         startMinute: 570,
         notes: 'Review layouts',
       });
-      const incomplete = await repository.findByRange(date, end, { completed: false });
+      const incomplete = await repository.findByRange(ownerId, date, end, { completed: false });
       expect(incomplete.map((task) => task.id)).not.toContain(shared.id);
       expect(incomplete.map((task) => task.id)).not.toContain(boundary.id);
       expect(incomplete.map((task) => task.id)).toContain(privateTask.id);
-      // Include every task on the date, even if another integration run left rows.
-      const day = await repository.findByDay(date);
-      const reordered = await repository.reorder(date, day.map((task) => task.id).reverse());
+      // Reorder only this user’s tasks on the date.
+      const day = await repository.findByDay(ownerId, date);
+      const reordered = await repository.reorder(ownerId, date, day.map((task) => task.id).reverse());
       expect(reordered.find((task) => task.id === shared.id)).toMatchObject({
         startMinute: 570,
         durationMinutes: 90,
@@ -81,11 +99,11 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
     const repository = new TasksRepository(database as unknown as DatabaseService);
     const originalDate = new Date('2031-02-03T00:00:00.000Z');
     const targetDate = new Date('2031-03-04T00:00:00.000Z');
-    const created = await repository.create('Before edit', originalDate);
-    const existing = await repository.create('Existing target task', targetDate);
+    const created = await repository.create(ownerId, 'Before edit', originalDate);
+    const existing = await repository.create(ownerId, 'Existing target task', targetDate);
     try {
-      await repository.setCompleted(created.id, true);
-      const updated = await repository.update(created.id, 'After edit', targetDate, {
+      await repository.setCompleted(ownerId, created.id, true);
+      const updated = await repository.update(ownerId, created.id, 'After edit', targetDate, {
         ...taskDetails,
         startMinute: 1439,
         durationMinutes: 1,
@@ -101,17 +119,39 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
       });
       expect(updated.position).toBeGreaterThan(existing.position);
       expect(
-        (await repository.findByDay(originalDate)).some((task) => task.id === created.id),
+        (await repository.findByDay(ownerId, originalDate)).some((task) => task.id === created.id),
       ).toBe(false);
-      await repository.update(created.id, 'No schedule', targetDate, taskDetails);
-      expect(await repository.remove(created.id)).toMatchObject({
+      await repository.update(ownerId, created.id, 'No schedule', targetDate, taskDetails);
+      expect(await repository.remove(ownerId, created.id)).toMatchObject({
         startMinute: null,
         durationMinutes: null,
         completed: true,
       });
-      await expect(repository.remove(created.id)).rejects.toMatchObject({ code: 'P2025' });
+      await expect(repository.remove(ownerId, created.id)).rejects.toMatchObject({ code: 'P2025' });
     } finally {
       await database.task.deleteMany({ where: { id: { in: [created.id, existing.id] } } });
+    }
+  });
+
+  it('isolates reads, ordering and mutations between task owners', async () => {
+    const repository = new TasksRepository(database as unknown as DatabaseService);
+    const date = new Date('2032-01-01T00:00:00.000Z');
+    const end = new Date('2032-01-02T00:00:00.000Z');
+    const own = await repository.create(ownerId, 'Own task', date);
+    const foreign = await repository.create(otherOwnerId, 'Other user task', date);
+    try {
+      expect(own).toMatchObject({ ownerId, position: 0 });
+      expect(foreign).toMatchObject({ ownerId: otherOwnerId, position: 0 });
+      expect(await repository.findByDay(ownerId, date)).toEqual([own]);
+      expect(await repository.findByRange(ownerId, date, end, {})).toEqual([own]);
+      await expect(repository.setCompleted(ownerId, foreign.id, true)).rejects.toMatchObject({ code: 'P2025' });
+      await expect(repository.update(ownerId, foreign.id, 'Stolen', date, taskDetails)).rejects.toMatchObject({ code: 'P2025' });
+      await expect(repository.remove(ownerId, foreign.id)).rejects.toMatchObject({ code: 'P2025' });
+      await expect(repository.reorder(ownerId, date, [foreign.id])).rejects.toThrow();
+      expect(await repository.reorder(ownerId, date, [own.id])).toEqual([own]);
+      expect(await repository.findByDay(otherOwnerId, date)).toEqual([foreign]);
+    } finally {
+      await database.task.deleteMany({ where: { id: { in: [own.id, foreign.id] } } });
     }
   });
 
@@ -128,7 +168,7 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
         { startMinute: 540, durationMinutes: 0 },
       ]) {
         await expect(
-          database.task.create({ data: { title, date, ...schedule } }),
+          database.task.create({ data: { title, date, ...schedule, ownerId } }),
         ).rejects.toThrow();
       }
       expect(await database.task.count({ where: { title } })).toBe(0);
@@ -140,10 +180,11 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
   it('stores date-only tasks and persists an explicit completion state', async () => {
     const title = `integration-${Date.now()}`;
     const day = new Date('0001-01-01T00:00:00.000Z');
-    const created = await database.task.create({ data: { title, date: day } });
+    const created = await database.task.create({ data: { title, date: day, ownerId } });
     try {
       expect(created.date.toISOString().slice(0, 10)).toBe('0001-01-01');
       expect(created).toMatchObject({
+        ownerId,
         startMinute: null,
         durationMinutes: null,
         visibility: 'PRIVATE',

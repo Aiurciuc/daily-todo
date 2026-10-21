@@ -14,6 +14,8 @@ enum TaskVisibility {
 
 model Task {
   id              Int            @id @default(autoincrement())
+  ownerId         Int?           @map("owner_id")
+  owner           User?          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   title           String         @db.VarChar(200)
   date            DateTime       @map("task_date") @db.Date
   completed       Boolean        @default(false)
@@ -25,7 +27,30 @@ model Task {
   notes           String?        @db.VarChar(10000)
   sharedWith      String?        @map("shared_with") @db.VarChar(120)
 
+  @@index([ownerId, date])
   @@index([date])
   @@index([date, visibility, startMinute])
   @@map("tasks")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(120)
+  email        String    @unique @db.VarChar(254)
+  passwordHash String    @map("password_hash")
+  tasks        Task[]
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Session {
+  tokenHash String   @id @map("token_hash") @db.Char(64)
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }

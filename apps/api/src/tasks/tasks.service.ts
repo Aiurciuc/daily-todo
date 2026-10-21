@@ -10,16 +10,16 @@ import { TasksRepository } from './tasks.repository';
 export class TasksService {
   constructor(private readonly tasks: TasksRepository) {}
 
-  async list(date: Date, filters: TaskFilters = {}): Promise<TaskResponseDto[]> {
-    return (await this.tasks.findByDay(date, filters)).map((task) => new TaskResponseDto(task));
+  async list(ownerId: number, date: Date, filters: TaskFilters = {}): Promise<TaskResponseDto[]> {
+    return (await this.tasks.findByDay(ownerId, date, filters)).map((task) => new TaskResponseDto(task));
   }
 
-  async listCalendar(query: TaskListQueryDto): Promise<TaskResponseDto[]> {
+  async listCalendar(ownerId: number, query: TaskListQueryDto): Promise<TaskResponseDto[]> {
     const filters: TaskFilters = {};
     if (query.visibility !== undefined) filters.visibility = query.visibility;
     if (query.completed !== undefined) filters.completed = query.completed;
     if (query.date !== undefined && query.from === undefined && query.to === undefined) {
-      return this.list(parseDay(query.date), filters);
+      return this.list(ownerId, parseDay(query.date), filters);
     }
     if (query.date !== undefined || query.from === undefined || query.to === undefined) {
       throw new BadRequestException('Provide either date, or both from and to (not both modes)');
@@ -30,27 +30,28 @@ export class TasksService {
     if (days < 1 || days > 366) {
       throw new BadRequestException('Range must span 1 to 366 days; to is exclusive');
     }
-    return (await this.tasks.findByRange(from, to, filters)).map(
+    return (await this.tasks.findByRange(ownerId, from, to, filters)).map(
       (task) => new TaskResponseDto(task),
     );
   }
 
   async create(
+    ownerId: number,
     title: string,
     date: Date,
     input: Partial<CreateTaskDto> = {},
   ): Promise<TaskResponseDto> {
-    return new TaskResponseDto(await this.tasks.create(title, date, this.details(input)));
+    return new TaskResponseDto(await this.tasks.create(ownerId, title, date, this.details(input)));
   }
 
-  async update(id: number, input: CreateTaskDto): Promise<TaskResponseDto> {
+  async update(ownerId: number, id: number, input: CreateTaskDto): Promise<TaskResponseDto> {
     return new TaskResponseDto(
-      await this.tasks.update(id, input.title, parseDay(input.date), this.details(input)),
+      await this.tasks.update(ownerId, id, input.title, parseDay(input.date), this.details(input)),
     );
   }
 
-  async remove(id: number): Promise<void> {
-    await this.tasks.remove(id);
+  async remove(ownerId: number, id: number): Promise<void> {
+    await this.tasks.remove(ownerId, id);
   }
 
   private details(input: Partial<CreateTaskDto>): TaskDetails {
@@ -74,11 +75,11 @@ export class TasksService {
     return details;
   }
 
-  async reorder(date: Date, ids: number[]): Promise<TaskResponseDto[]> {
-    return (await this.tasks.reorder(date, ids)).map((task) => new TaskResponseDto(task));
+  async reorder(ownerId: number, date: Date, ids: number[]): Promise<TaskResponseDto[]> {
+    return (await this.tasks.reorder(ownerId, date, ids)).map((task) => new TaskResponseDto(task));
   }
 
-  async setCompleted(id: number, completed: boolean): Promise<TaskResponseDto> {
-    return new TaskResponseDto(await this.tasks.setCompleted(id, completed));
+  async setCompleted(ownerId: number, id: number, completed: boolean): Promise<TaskResponseDto> {
+    return new TaskResponseDto(await this.tasks.setCompleted(ownerId, id, completed));
   }
 }

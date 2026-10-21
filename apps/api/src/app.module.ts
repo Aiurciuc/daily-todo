@@ -6,6 +6,7 @@ import { apiConfig } from './config/app.config';
 import { DatabaseExceptionFilter } from './database/database-exception.filter';
 import { HealthModule } from './health/health.module';
 import { TasksModule } from './tasks/tasks.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TasksModule } from './tasks/tasks.module';
       load: [apiConfig],
     }),
     HealthModule,
+    AuthModule,
     TasksModule,
   ],
   providers: [

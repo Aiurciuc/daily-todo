@@ -16,6 +16,7 @@ async function bootstrap(): Promise<void> {
     .setTitle('Daily Todo API')
     .setDescription('API documentation')
     .setVersion('1.0')
+    .addCookieAuth('daily_todo_session', { type: 'apiKey' }, 'daily_todo_session')
     .build();
   const openApiDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, openApiDocument);

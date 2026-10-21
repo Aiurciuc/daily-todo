@@ -70,6 +70,19 @@ kbd {
 .top-views button {
   padding: 0 12px;
 }
+.identity {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 12px var(--terra-font);
+}
+.logout-error {
+  margin: 0;
+  padding: 12px 24px;
+  color: #912c2c;
+  background: #fff3f0;
+}
 .topbar-range {
   position: absolute;
   left: 50%;
@@ -96,7 +109,11 @@ kbd {
 }
 @media (max-width: 520px) {
   .topbar {
-    padding: 0 12px;
+    height: auto;
+    min-height: 56px;
+    padding: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .topbar-left {
     gap: 8px;
@@ -107,6 +124,8 @@ kbd {
     display: none;
   }
   .topbar-right {
-    gap: 0;
+    width: 100%;
+    gap: 8px;
+    justify-content: space-between;
   }
 }

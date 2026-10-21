@@ -1,0 +1,157 @@
+<div class="auth-shell">
+  <header class="brand"><terra-icon name="calendar_today" /> <span>Daily Todo</span></header>
+  <main class="auth-layout">
+    <section class="editorial" aria-label="A calmer day">
+      <p class="eyebrow">MAKE ROOM FOR WHAT MATTERS</p>
+      <h1>A little focus.<br />A calmer day.</h1>
+      <p>Your plans, a little more grounded. Give your day space to unfold, one task at a time.</p>
+      <div class="calendar-art" aria-hidden="true">
+        <div class="art-header"><span>THIS WEEK</span><terra-icon name="calendar_today" /></div>
+        <div class="art-days">
+          <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span>
+        </div>
+        <div class="art-grid">
+          <span></span><span class="done">✓</span><span></span><span></span><span></span
+          ><span></span><span></span><span class="block"></span><span></span><span></span>
+        </div>
+        <div class="art-task"><span>✓</span> A little progress, every day</div>
+      </div>
+      <p class="editorial-note">Less noise. More intention.</p>
+    </section>
+    <section class="form-area" [attr.aria-labelledby]="'auth-title'">
+      <div class="auth-card">
+        <p class="eyebrow">{{ register ? 'YOUR NEXT CHAPTER' : 'YOUR SPACE TO FOCUS' }}</p>
+        <h2 id="auth-title">{{ register ? 'Create your account' : 'Welcome back' }}</h2>
+        <p class="intro">
+          {{ register ? 'A calmer day starts here.' : 'Sign in and pick up where you left off.' }}
+        </p>
+        @if (expired) {
+          <p class="session-notice" role="status">
+            Your session expired. Sign in again to continue.
+          </p>
+        }
+        <form (submit)="onSubmit($event)" novalidate [attr.aria-busy]="pending()">
+          @if (register) {
+            <div class="field">
+              <label for="name">Your name</label>
+              <input
+                class="terra-field"
+                id="name"
+                autocomplete="name"
+                [formField]="fields.name"
+                aria-describedby="name-errors"
+              />
+              <div id="name-errors" class="field-error">
+                @if (fields.name().touched()) {
+                  @for (error of fields.name().errors(); track $index) {
+                    <p>{{ error.message }}</p>
+                  }
+                }
+              </div>
+            </div>
+          }
+          <div class="field">
+            <label for="email">Email address</label>
+            <input
+              class="terra-field"
+              id="email"
+              type="email"
+              autocomplete="email"
+              autocapitalize="none"
+              spellcheck="false"
+              [formField]="fields.email"
+              aria-describedby="email-errors"
+            />
+            <div id="email-errors" class="field-error">
+              @if (fields.email().touched()) {
+                @for (error of fields.email().errors(); track $index) {
+                  <p>{{ error.message }}</p>
+                }
+              }
+            </div>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-field">
+              <input
+                class="terra-field"
+                id="password"
+                [type]="showPassword() ? 'text' : 'password'"
+                [autocomplete]="register ? 'new-password' : 'current-password'"
+                [formField]="fields.password"
+                aria-describedby="password-hint password-errors"
+              />
+              <button
+                terraButton
+                variant="ghost"
+                type="button"
+                [attr.aria-pressed]="showPassword()"
+                [attr.aria-controls]="register ? 'password confirmation' : 'password'"
+                (click)="showPassword.set(!showPassword())"
+              >
+                {{ showPassword() ? 'Hide' : 'Show' }}<span class="sr-only"> password</span>
+              </button>
+            </div>
+            <p id="password-hint" class="hint">Use 8–128 characters.</p>
+            <div id="password-errors" class="field-error">
+              @if (fields.password().touched()) {
+                @for (error of fields.password().errors(); track $index) {
+                  <p>{{ error.message }}</p>
+                }
+              }
+            </div>
+          </div>
+          @if (register) {
+            <div class="field">
+              <label for="confirmation">Confirm password</label>
+              <input
+                class="terra-field"
+                id="confirmation"
+                [type]="showPassword() ? 'text' : 'password'"
+                autocomplete="new-password"
+                [formField]="fields.confirmation"
+                aria-describedby="confirmation-errors"
+              />
+              <div id="confirmation-errors" class="field-error">
+                @if (fields.confirmation().touched()) {
+                  @for (error of fields.confirmation().errors(); track $index) {
+                    <p>{{ error.message }}</p>
+                  }
+                }
+              </div>
+            </div>
+          }
+          @if (error()) {
+            <p class="request-error" role="alert">{{ error() }}</p>
+          }
+          <button terraButton type="submit" class="submit-button" [disabled]="pending()">
+            {{
+              pending()
+                ? register
+                  ? 'Creating account…'
+                  : 'Signing in…'
+                : register
+                  ? 'Create account'
+                  : 'Sign in'
+            }}
+            <terra-icon name="arrow_forward" />
+          </button>
+          @if (pending()) {
+            <p class="hint" role="status">Please wait…</p>
+          }
+        </form>
+      </div>
+      <p class="switch-flow">
+        {{ register ? 'Already have an account?' : 'New here?' }}
+        @if (!pending()) {
+          <a
+            [routerLink]="register ? '/login' : '/register'"
+            [queryParams]="{ returnUrl: returnUrl }"
+            >{{ register ? 'Sign in' : 'Create an account' }}</a
+          >
+        }
+      </p>
+    </section>
+  </main>
+  <footer>A little progress, every day.</footer>
+</div>

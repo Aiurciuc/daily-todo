@@ -1,3 +1,11 @@
-:host {
-  display: block;
+.session-state {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+  background: #f6f4ef;
+  color: var(--terra-ink);
+  font-family: var(--terra-font);
 }

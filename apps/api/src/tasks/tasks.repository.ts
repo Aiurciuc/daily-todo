@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Prisma, Task } from '@prisma/client';
 import { DatabaseService } from '../database/database.service';
 import { TaskDetails, TaskFilters } from './task.types';
@@ -7,25 +7,33 @@ import { TaskDetails, TaskFilters } from './task.types';
 export class TasksRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  findByDay(date: Date, filters: TaskFilters = {}): Promise<Task[]> {
+  private requireOwner(ownerId: number): void {
+    // Prisma ignores undefined filters; fail closed even for accidental internal misuse.
+    if (!Number.isSafeInteger(ownerId) || ownerId < 1) throw new UnauthorizedException();
+  }
+
+  findByDay(ownerId: number, date: Date, filters: TaskFilters = {}): Promise<Task[]> {
+    this.requireOwner(ownerId);
     return this.database.task.findMany({
-      where: { date, ...filters },
+      where: { date, ...filters, ownerId },
       orderBy: [{ position: 'asc' }, { id: 'asc' }],
     });
   }
 
-  findByRange(from: Date, to: Date, filters: TaskFilters): Promise<Task[]> {
+  findByRange(ownerId: number, from: Date, to: Date, filters: TaskFilters): Promise<Task[]> {
+    this.requireOwner(ownerId);
     return this.database.task.findMany({
-      where: { date: { gte: from, lt: to }, ...filters },
+      where: { date: { gte: from, lt: to }, ...filters, ownerId },
       orderBy: [{ date: 'asc' }, { startMinute: 'asc' }, { position: 'asc' }, { id: 'asc' }],
     });
   }
 
-  create(title: string, date: Date, details?: TaskDetails): Promise<Task> {
+  create(ownerId: number, title: string, date: Date, details?: TaskDetails): Promise<Task> {
+    this.requireOwner(ownerId);
     return this.database.$transaction(
       async (transaction) => {
         const last = await transaction.task.aggregate({
-          where: { date },
+          where: { date, ownerId },
           _max: { position: true },
         });
         return transaction.task.create({
@@ -34,6 +42,7 @@ export class TasksRepository {
             date,
             position: (last._max.position ?? -1) + 1,
             ...details,
+            ownerId,
           },
         });
       },
@@ -41,10 +50,11 @@ export class TasksRepository {
     );
   }
 
-  reorder(date: Date, ids: number[]): Promise<Task[]> {
+  reorder(ownerId: number, date: Date, ids: number[]): Promise<Task[]> {
+    this.requireOwner(ownerId);
     return this.database.$transaction(
       async (transaction) => {
-        const tasks = await transaction.task.findMany({ where: { date } });
+        const tasks = await transaction.task.findMany({ where: { date, ownerId } });
         const byId = new Map(tasks.map((task) => [task.id, task]));
         if (
           tasks.length !== ids.length ||
@@ -54,7 +64,7 @@ export class TasksRepository {
           throw new ConflictException('Tasks changed. Reload and try again.');
         }
         for (const [position, id] of ids.entries()) {
-          await transaction.task.update({ where: { id }, data: { position } });
+          await transaction.task.update({ where: { id, ownerId }, data: { position } });
         }
         return ids.map((id, position) => ({ ...byId.get(id)!, position }));
       },
@@ -62,20 +72,21 @@ export class TasksRepository {
     );
   }
 
-  update(id: number, title: string, date: Date, details: TaskDetails): Promise<Task> {
+  update(ownerId: number, id: number, title: string, date: Date, details: TaskDetails): Promise<Task> {
+    this.requireOwner(ownerId);
     return this.database.$transaction(
       async (transaction) => {
-        const current = await transaction.task.findUniqueOrThrow({ where: { id } });
+        const current = await transaction.task.findUniqueOrThrow({ where: { id, ownerId } });
         let position = current.position;
         if (current.date.getTime() !== date.getTime()) {
           const last = await transaction.task.aggregate({
-            where: { date },
+            where: { date, ownerId },
             _max: { position: true },
           });
           position = (last._max.position ?? -1) + 1;
         }
         return transaction.task.update({
-          where: { id },
+          where: { id, ownerId },
           data: { title, date, position, ...details },
         });
       },
@@ -83,13 +94,15 @@ export class TasksRepository {
     );
   }
 
-  remove(id: number): Promise<Task> {
-    return this.database.task.delete({ where: { id } });
+  remove(ownerId: number, id: number): Promise<Task> {
+    this.requireOwner(ownerId);
+    return this.database.task.delete({ where: { id, ownerId } });
   }
 
-  setCompleted(id: number, completed: boolean): Promise<Task> {
+  setCompleted(ownerId: number, id: number, completed: boolean): Promise<Task> {
+    this.requireOwner(ownerId);
     return this.database.task.update({
-      where: { id },
+      where: { id, ownerId },
       data: { completed },
     });
   }

@@ -1,4 +1,6 @@
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { CurrentUser, SessionGuard } from '../auth/auth.guards';
+import { UserResponseDto } from '../auth/auth.dto';
 import {
   Body,
   Controller,
@@ -10,6 +12,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   CreateTaskDto,
@@ -23,52 +26,56 @@ import { parseDay } from './task-date';
 import { TasksService } from './tasks.service';
 
 @ApiTags('tasks')
+@ApiCookieAuth('daily_todo_session')
+@ApiUnauthorizedResponse({ description: 'Missing, invalid or expired session' })
+@UseGuards(SessionGuard)
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List tasks' })
+  @ApiOperation({ summary: 'List your own tasks; SHARED is a label, not cross-user access' })
   @ApiOkResponse({ type: TaskResponseDto, isArray: true })
-  list(@Query() query: TaskListQueryDto): Promise<TaskResponseDto[]> {
-    return this.tasks.listCalendar(query);
+  list(@CurrentUser() user: UserResponseDto, @Query() query: TaskListQueryDto): Promise<TaskResponseDto[]> {
+    return this.tasks.listCalendar(user.id, query);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a task' })
   @ApiOkResponse({ type: TaskResponseDto })
-  create(@Body() input: CreateTaskDto): Promise<TaskResponseDto> {
-    return this.tasks.create(input.title, parseDay(input.date), input);
+  create(@CurrentUser() user: UserResponseDto, @Body() input: CreateTaskDto): Promise<TaskResponseDto> {
+    return this.tasks.create(user.id, input.title, parseDay(input.date), input);
   }
 
   @Patch('order')
   @ApiOperation({ summary: 'Reorder tasks for a date' })
   @ApiOkResponse({ type: TaskResponseDto, isArray: true })
-  reorder(@Body() input: ReorderTasksDto): Promise<TaskResponseDto[]> {
-    return this.tasks.reorder(parseDay(input.date), input.ids);
+  reorder(@CurrentUser() user: UserResponseDto, @Body() input: ReorderTasksDto): Promise<TaskResponseDto[]> {
+    return this.tasks.reorder(user.id, parseDay(input.date), input.ids);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a task' })
   @ApiOkResponse({ type: TaskResponseDto })
-  update(@Param() params: TaskIdParamsDto, @Body() input: CreateTaskDto): Promise<TaskResponseDto> {
-    return this.tasks.update(params.id, input);
+  update(@CurrentUser() user: UserResponseDto, @Param() params: TaskIdParamsDto, @Body() input: CreateTaskDto): Promise<TaskResponseDto> {
+    return this.tasks.update(user.id, params.id, input);
   }
 
   @Delete(':id')
   @HttpCode(204)
   @ApiNoContentResponse({ description: 'Task removed' })
-  remove(@Param() params: TaskIdParamsDto): Promise<void> {
-    return this.tasks.remove(params.id);
+  remove(@CurrentUser() user: UserResponseDto, @Param() params: TaskIdParamsDto): Promise<void> {
+    return this.tasks.remove(user.id, params.id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Set task completion status' })
   @ApiOkResponse({ type: TaskResponseDto })
   setCompleted(
+    @CurrentUser() user: UserResponseDto,
     @Param() params: TaskIdParamsDto,
     @Body() input: SetTaskCompletedDto,
   ): Promise<TaskResponseDto> {
-    return this.tasks.setCompleted(params.id, input.completed);
+    return this.tasks.setCompleted(user.id, params.id, input.completed);
   }
 }

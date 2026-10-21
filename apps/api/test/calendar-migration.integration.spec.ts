@@ -34,10 +34,19 @@ describe('calendar migration preserves legacy tasks', () => {
         'SELECT id, title, task_date::text, completed, position FROM tasks ORDER BY id',
       );
       await migration('20261015120000_calendar_task_details');
+      await migration('20261016120000_auth_ownership');
       const after = await client.query(
         'SELECT id, title, task_date::text, completed, position FROM tasks ORDER BY id',
       );
       expect(after.rows).toEqual(before.rows);
+      expect((await client.query('SELECT owner_id FROM tasks')).rows).toEqual([
+        { owner_id: null }, { owner_id: null },
+      ]);
+      // A newly registered account must not claim or otherwise modify legacy data.
+      await client.query("INSERT INTO users (name, email, password_hash) VALUES ('First', 'first@example.com', 'unused')");
+      expect((await client.query('SELECT owner_id FROM tasks')).rows).toEqual([
+        { owner_id: null }, { owner_id: null },
+      ]);
       const details = await client.query(
         'SELECT start_minute, duration_minutes, visibility, notes, shared_with FROM tasks',
       );

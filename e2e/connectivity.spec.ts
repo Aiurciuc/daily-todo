@@ -9,7 +9,14 @@ test('keeps independent health endpoints', async ({ request }) => {
   expect(await ready.json()).toEqual({ api: 'ok', database: 'ok' });
 });
 
-test('persists calendar creation, edits, completion, date moves and deletion', async ({ page, request }) => {
+test('persists calendar creation, edits, completion, date moves and deletion', async ({ page, baseURL }) => {
+  // The page context shares the HttpOnly session cookie with its request client.
+  const request = page.request;
+  const registration = await request.post('/api/auth/register', {
+    headers: { Origin: new URL(baseURL!).origin },
+    data: { name: 'Calendar browser test', email: `calendar-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`, password: 'Browser-test-password-2026!' },
+  });
+  expect(registration.status()).toBe(201);
   const title = `Browser calendar ${Date.now()}`;
   const updatedTitle = `${title} updated`;
   const today = new Date();
@@ -84,6 +91,6 @@ test('persists calendar creation, edits, completion, date moves and deletion', a
     const remaining = await request.get(`/api/tasks?date=${movedDate}`);
     expect((await remaining.json()).some((task: { id: number }) => task.id === id)).toBe(false);
   } finally {
-    if (id) await request.delete(`/api/tasks/${id}`);
+    if (id) await request.delete(`/api/tasks/${id}`, { headers: { Origin: new URL(baseURL!).origin } });
   }
 });

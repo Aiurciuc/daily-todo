@@ -1,1 +1,11 @@
-<app-calendar-preview />
+@if (auth.state() === 'loading') {
+  <main class="session-state" role="status">Restoring your session…</main>
+} @else if (auth.state() === 'error') {
+  <main class="session-state">
+    <h1>We couldn’t check your session</h1>
+    <p role="alert">Check your connection and try again. You haven’t been signed out.</p>
+    <button terraButton (click)="retrySession()">Retry connection</button>
+  </main>
+} @else {
+  <router-outlet />
+}
