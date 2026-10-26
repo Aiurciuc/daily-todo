@@ -13,6 +13,7 @@ import { taskDetails } from './fixtures/task.fixture';
 const ownerId = 1;
 const task = {
   ownerId,
+  recipientId: null,
   id: 1,
   title: 'First',
   date: new Date('0001-01-01T00:00:00.000Z'),
@@ -20,7 +21,7 @@ const task = {
   position: 5,
   ...taskDetails,
 };
-const publicTask = { id: 1, title: 'First', date: '0001-01-01', completed: false, ...taskDetails };
+const publicTask = { id: 1, title: 'First', date: '0001-01-01', completed: false, canEdit: true, ...taskDetails };
 
 describe('API HTTP contracts', () => {
   let app: INestApplication;
@@ -178,7 +179,7 @@ describe('API HTTP contracts', () => {
       durationMinutes: 90,
       visibility: 'SHARED',
       notes: 'Review the new layouts',
-      sharedWith: 'Design Team',
+      sharedWith: 'recipient@example.com',
     };
     repository.create.mockResolvedValue({
       ...task,

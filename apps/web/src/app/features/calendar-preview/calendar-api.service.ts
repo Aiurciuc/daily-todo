@@ -1,13 +1,20 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Injectable, inject, Signal } from '@angular/core';
-import { NewCalendarTask, PersistedCalendarTask } from './calendar-preview.models';
+import { CalendarRange, NewCalendarTask, PersistedCalendarTask } from './calendar-preview.models';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarApiService {
   private readonly http = inject(HttpClient);
 
-  list(range: Signal<{ from: string; to: string }>) {
-    return httpResource<PersistedCalendarTask[]>(() => ({ url: '/api/tasks', params: range() }));
+  list(range: Signal<CalendarRange | undefined>) {
+    return httpResource<PersistedCalendarTask[]>(() => {
+      const params = range();
+      return params ? { url: '/api/tasks', params: { ...params } } : undefined;
+    });
+  }
+
+  fetchRange(range: CalendarRange) {
+    return this.http.get<PersistedCalendarTask[]>('/api/tasks', { params: { ...range } });
   }
 
   create(task: NewCalendarTask) {

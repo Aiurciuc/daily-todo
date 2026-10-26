@@ -1,25 +1,56 @@
-<div #calendarScroll class="calendar-scroll card">
+<div #calendarScroll class="calendar-scroll card" cdkDropListGroup cdkScrollable>
   <div class="calendar" [class.day-view]="dayView()" [style.--day-count]="visibleDays().length">
-    <div class="calendar-heading">
-      <div class="timezone">{{ timezone }}</div>
-      @for (day of visibleDays(); track day) {
-        <terra-calendar-day-header
-          [weekday]="weekdays[day]"
-          [day]="(dayDate(day) | date: 'd')!"
-          [active]="day === activeDay()"
-          [accessibleLabel]="(dayDate(day) | date: 'fullDate')!"
-          (selected)="daySelected.emit(day)"
-        />
-      }
-    </div>
-    <div class="unscheduled-tasks" aria-label="Unscheduled tasks">
-      @for (task of tasks(); track task.id) {
-        @if (task.scheduled === false && visibleDays().includes(task.day)) {
-          <button class="outline-button" (click)="taskSelected.emit(task)">
-            {{ weekdays[task.day] }} · {{ task.title }} (unscheduled)
-          </button>
+    <div class="calendar-top">
+      <div class="calendar-heading">
+        <div class="timezone">{{ timezone }}</div>
+        @for (day of visibleDays(); track day) {
+          <terra-calendar-day-header
+            [weekday]="weekdays[day]"
+            [day]="(dayDate(day) | date: 'd')!"
+            [active]="day === activeDay()"
+            [accessibleLabel]="(dayDate(day) | date: 'fullDate')!"
+            (selected)="daySelected.emit(day)"
+          />
         }
-      }
+      </div>
+      <section class="unscheduled-tasks" aria-label="Tasks without a time">
+        <div class="untimed-label">No time</div>
+        @for (column of untimedDays(); track column.day) {
+          <div
+            class="untimed-day"
+            cdkDropList
+            [cdkDropListData]="{ day: column.day, kind: 'untimed' }"
+            [cdkDropListSortingDisabled]="true"
+            [cdkDropListDisabled]="interactionDisabled()"
+            [cdkDropListEnterPredicate]="canEnter"
+            (cdkDropListDropped)="dropTask($event)"
+            role="group"
+            [attr.aria-label]="
+              'Tasks without a time for ' + (dayDate(column.day) | date: 'fullDate')
+            "
+          >
+            @for (task of column.tasks; track task.id) {
+              <terra-task-block
+                class="untimed-task"
+                cdkDrag
+                #untimedDrag="cdkDrag"
+                (pointerdown)="capturePickup($event, untimedDrag.element.nativeElement, task)"
+                [cdkDragData]="task.id"
+                [cdkDragDisabled]="interactionDisabled() || task.canEdit === false"
+                (cdkDragStarted)="dragStarted($event)"
+                (cdkDragEnded)="dragEnded(untimedDrag)"
+                [taskTitle]="task.title"
+                [timeLabel]="'No time, ' + (dayDate(column.day) | date: 'fullDate')"
+                [compact]="true"
+                [selected]="task.id === selectedId()"
+                [shared]="task.shared"
+                [completed]="!!task.completed"
+                (activated)="selectTask(task)"
+              />
+            }
+          </div>
+        }
+      </section>
     </div>
     <div class="calendar-body">
       <div class="time-axis">
@@ -30,6 +61,12 @@
       @for (day of visibleDays(); track day) {
         <div
           class="day-column"
+          cdkDropList
+          [cdkDropListData]="{ day, kind: 'timeline' }"
+          [cdkDropListSortingDisabled]="true"
+          [cdkDropListDisabled]="interactionDisabled()"
+          [cdkDropListEnterPredicate]="canEnter"
+          (cdkDropListDropped)="dropTask($event)"
           [class.today-column]="day === activeDay()"
           [class.weekend]="day > 4"
         >
@@ -37,7 +74,7 @@
             <button
               class="hour-slot"
               [attr.aria-label]="'Block time on ' + weekdays[day] + ' at ' + time(hour)"
-              (click)="slotSelected.emit({ day, hour })"
+              (click)="selectSlot(day, hour)"
             ></button>
           }
           @if (nowMarker(); as marker) {
@@ -47,20 +84,31 @@
           }
           @for (task of tasks(); track task.id) {
             @if (task.day === day && task.scheduled !== false) {
-              <terra-task-block
+              <div
                 class="positioned-task"
                 [style.left]="positions().get(task.id)?.left"
                 [style.width]="positions().get(task.id)?.width"
                 [style.top.px]="task.start * 64"
                 [style.height.px]="task.duration * 64"
-                [selected]="task.id === selectedId()"
-                [compact]="task.duration <= 0.5"
-                [taskTitle]="task.title"
-                [timeLabel]="time(task.start) + ' – ' + time(task.start + task.duration)"
-                [shared]="task.shared"
-                [completed]="!!task.completed"
-                (activated)="taskSelected.emit(task)"
-              />
+              >
+                <terra-task-block
+                  class="timed-drag"
+                  cdkDrag
+                  #scheduledDrag="cdkDrag"
+                  (pointerdown)="capturePickup($event, scheduledDrag.element.nativeElement, task)"
+                  [cdkDragData]="task.id"
+                  [cdkDragDisabled]="interactionDisabled() || task.canEdit === false"
+                  (cdkDragStarted)="dragStarted($event)"
+                  (cdkDragEnded)="dragEnded(scheduledDrag)"
+                  [selected]="task.id === selectedId()"
+                  [compact]="task.duration <= 0.5"
+                  [taskTitle]="task.title"
+                  [timeLabel]="time(task.start) + ' – ' + time(task.start + task.duration)"
+                  [shared]="task.shared"
+                  [completed]="!!task.completed"
+                  (activated)="selectTask(task)"
+                />
+              </div>
             }
           }
         </div>

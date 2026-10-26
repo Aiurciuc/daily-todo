@@ -9,12 +9,19 @@ test('keeps independent health endpoints', async ({ request }) => {
   expect(await ready.json()).toEqual({ api: 'ok', database: 'ok' });
 });
 
-test('persists calendar creation, edits, completion, date moves and deletion', async ({ page, baseURL }) => {
+test('persists calendar creation, edits, completion, date moves and deletion', async ({
+  page,
+  baseURL,
+}) => {
   // The page context shares the HttpOnly session cookie with its request client.
   const request = page.request;
   const registration = await request.post('/api/auth/register', {
     headers: { Origin: new URL(baseURL!).origin },
-    data: { name: 'Calendar browser test', email: `calendar-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`, password: 'Browser-test-password-2026!' },
+    data: {
+      name: 'Calendar browser test',
+      email: `calendar-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`,
+      password: 'Browser-test-password-2026!',
+    },
   });
   expect(registration.status()).toBe(201);
   const title = `Browser calendar ${Date.now()}`;
@@ -32,9 +39,9 @@ test('persists calendar creation, edits, completion, date moves and deletion', a
     await dialog.getByLabel('Start time').fill('09:37');
     await dialog.getByLabel('Duration (minutes)').fill('47');
     await dialog.getByLabel('Notes').fill('Persisted browser notes');
-    await dialog.getByLabel('Team label (optional)').fill('Design');
-    await dialog.getByRole('radio', { name: /Shared/ }).check();
-    const creation = page.waitForResponse((response) => response.url().endsWith('/api/tasks') && response.request().method() === 'POST');
+    const creation = page.waitForResponse(
+      (response) => response.url().endsWith('/api/tasks') && response.request().method() === 'POST',
+    );
     await dialog.getByRole('button', { name: 'Create task', exact: true }).click();
     const created = await creation;
     expect(created.status()).toBe(201);
@@ -62,9 +69,17 @@ test('persists calendar creation, edits, completion, date moves and deletion', a
     await dialog.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(details.getByRole('heading', { name: updatedTitle })).toBeVisible();
     await expect(page.locator('.unscheduled-tasks')).toContainText(updatedTitle);
-    await page.locator('.filters').getByRole('button', { name: /Shared/ }).click();
-    await expect(page.locator('.unscheduled-tasks')).not.toContainText(updatedTitle);
-    await page.locator('.filters').getByRole('button', { name: /Private/ }).click();
+    await page
+      .locator('.filters')
+      .getByRole('button', { name: /Shared/ })
+      .click();
+    await expect(page.locator('.unscheduled-tasks').filter({ hasText: updatedTitle })).toHaveCount(
+      0,
+    );
+    await page
+      .locator('.filters')
+      .getByRole('button', { name: /Private/ })
+      .click();
     await expect(page.locator('.unscheduled-tasks')).toContainText(updatedTitle);
 
     await details.getByRole('button', { name: 'Edit task', exact: true }).click();
@@ -81,16 +96,23 @@ test('persists calendar creation, edits, completion, date moves and deletion', a
     await expect(details.getByRole('heading', { name: updatedTitle })).toBeVisible();
     const saved = await request.get(`/api/tasks?date=${movedDate}`);
     expect((await saved.json()).find((task: { id: number }) => task.id === id)).toMatchObject({
-      title: updatedTitle, completed: false, notes: 'Persisted browser notes', startMinute: null, durationMinutes: null,
+      title: updatedTitle,
+      completed: false,
+      notes: 'Persisted browser notes',
+      startMinute: null,
+      durationMinutes: null,
     });
     page.once('dialog', (confirmation) => confirmation.accept());
     await page.getByRole('button', { name: 'Delete task', exact: true }).click();
     await expect(details).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('.unscheduled-tasks')).not.toContainText(updatedTitle);
+    await expect(page.locator('.unscheduled-tasks').filter({ hasText: updatedTitle })).toHaveCount(
+      0,
+    );
     const remaining = await request.get(`/api/tasks?date=${movedDate}`);
     expect((await remaining.json()).some((task: { id: number }) => task.id === id)).toBe(false);
   } finally {
-    if (id) await request.delete(`/api/tasks/${id}`, { headers: { Origin: new URL(baseURL!).origin } });
+    if (id)
+      await request.delete(`/api/tasks/${id}`, { headers: { Origin: new URL(baseURL!).origin } });
   }
 });

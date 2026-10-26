@@ -3,6 +3,8 @@ import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CalendarPreviewComponent } from './calendar-preview.component';
+import { CalendarTimeGridComponent } from './calendar-time-grid/calendar-time-grid.component';
+import { TaskDetailsComponent } from './task-details/task-details.component';
 import { TaskDialogComponent } from './task-dialog/task-dialog.component';
 import { calendarDayDate, dateKey } from './calendar-preview.utils';
 import { PersistedCalendarTask } from './calendar-preview.models';
@@ -16,7 +18,7 @@ const task: PersistedCalendarTask = {
   visibility: 'SHARED',
   completed: false,
   notes: 'Actual stored notes',
-  sharedWith: 'Design',
+  sharedWith: 'recipient@example.com',
 };
 
 describe('API-backed calendar', () => {
@@ -50,10 +52,260 @@ describe('API-backed calendar', () => {
     element.querySelector<HTMLButtonElement>('.calendar-task')!.click();
     await fixture.whenStable();
     expect(element.querySelector('.details .notes')?.textContent).toBe('Actual stored notes');
+    expect(element.querySelector('app-task-details')?.textContent).toContain(
+      'Shared with recipient@example.com',
+    );
     element.querySelectorAll<HTMLButtonElement>('.filters button')[2].click();
     await fixture.whenStable();
     expect(element.querySelectorAll('.calendar-task')).toHaveLength(0);
     expect(element.textContent).toContain('No tasks for this period');
+  });
+
+  it('displays received tasks read-only and guards parent mutation handlers', async () => {
+    const { fixture, http, element, dialog } = await render([{ ...task, canEdit: false }]);
+    element.querySelector<HTMLButtonElement>('.calendar-task')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.details h3')?.textContent).toBe(task.title);
+    expect(element.textContent).toContain('Shared with you · Read-only');
+    expect(element.querySelector('[aria-label="Edit task"]')).toBeNull();
+    expect(element.querySelector('[aria-label="Delete task"]')).toBeNull();
+    expect(element.querySelector('.detail-actions .secondary')).toBeNull();
+    const details = fixture.debugElement.query(By.directive(TaskDetailsComponent))
+      .componentInstance as TaskDetailsComponent;
+    details.editRequested.emit();
+    details.completionToggled.emit();
+    details.deleteRequested.emit();
+    expect(element.querySelector('dialog')!.showModal).not.toHaveBeenCalled();
+    http.expectNone((req) => req.method !== 'GET');
+    // Even a stale edit dialog cannot update a now-read-only task.
+    const parent = fixture.componentInstance as unknown as { editingId: { set(id: number): void } };
+    parent.editingId.set(task.id);
+    dialog.taskCreated.emit(task);
+    http.expectNone((req) => req.method !== 'GET');
+  });
+
+  it('moves immediately and confirms without reloading or replacing the calendar', async () => {
+    const { fixture, http, element } = await render([{ ...task, completed: true }]);
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    const moved = {
+      ...task,
+      completed: true,
+      date: dateKey(calendarDayDate(0, 2)),
+      startMinute: 615,
+    };
+    const scroll = element.querySelector<HTMLElement>('.calendar-scroll')!;
+    scroll.scrollTop = 320;
+    grid.taskMoved.emit({ id: task.id, day: 2, startMinute: 615 });
+    const update = http.expectOne('/api/tasks/42');
+    expect(update.request.method).toBe('PUT');
+    expect(update.request.body).toEqual({
+      title: task.title,
+      date: moved.date,
+      startMinute: 615,
+      durationMinutes: 60,
+      visibility: task.visibility,
+      notes: task.notes,
+      sharedWith: task.sharedWith,
+    });
+    await fixture.whenStable();
+    expect(grid.interactionDisabled()).toBe(true);
+    expect(element.querySelectorAll('.day-column')[2].textContent).toContain(task.title);
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('10:15');
+    expect(element.querySelector('.calendar-scroll')).toBe(scroll);
+    expect(scroll.scrollTop).toBe(320);
+    expect(element.textContent).not.toContain('Loading tasks');
+    grid.taskMoved.emit({ id: task.id, day: 3, startMinute: 660 });
+    http.expectNone('/api/tasks/42');
+    update.flush(moved);
+    await TestBed.tick();
+    http.expectNone((request) => request.method === 'GET');
+    await fixture.whenStable();
+    expect(element.querySelector('.calendar-task.completed')).not.toBeNull();
+    expect(element.textContent).toContain('10:15');
+    expect(element.textContent).toContain('Task moved.');
+    expect(element.querySelector('.calendar-scroll')).toBe(scroll);
+    expect(scroll.scrollTop).toBe(320);
+    expect(element.querySelector('.notice-error')).toBeNull();
+  });
+
+  it('keeps the original task after a failed drag save and permits retry', async () => {
+    const { fixture, http, element } = await render();
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    const update = http.expectOne('/api/tasks/42');
+    await fixture.whenStable();
+    expect(element.querySelectorAll('.day-column')[1].textContent).toContain(task.title);
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('10:00');
+    update.flush({}, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('09:37');
+    expect(element.querySelector('.notice-error[role="alert"]')?.textContent).toContain(
+      'Could not move task.',
+    );
+    expect(element.querySelector('.notice-error')?.textContent).toContain(
+      'Previous position restored.',
+    );
+    expect(element.querySelector('.workspace > [role="alert"]')).toBeNull();
+    expect(element.textContent).not.toContain('Task moved.');
+    http.expectNone((request) => request.method === 'GET');
+    element.querySelector<HTMLButtonElement>('[aria-label="Dismiss message"]')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.notice')).toBeNull();
+    expect(grid.interactionDisabled()).toBe(false);
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    http.expectOne('/api/tasks/42').flush({}, { status: 503, statusText: 'Unavailable' });
+  });
+
+  it('shows API validation in the red banner and clears the error on a successful retry', async () => {
+    const { fixture, http, element } = await render();
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    http
+      .expectOne('/api/tasks/42')
+      .flush(
+        { message: ['Recipient no longer exists'] },
+        { status: 400, statusText: 'Bad Request' },
+      );
+    await fixture.whenStable();
+    expect(element.querySelector('.notice-error')?.textContent).toContain(
+      'Recipient no longer exists',
+    );
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    http.expectOne('/api/tasks/42').flush({
+      ...task,
+      date: dateKey(calendarDayDate(0, 1)),
+      startMinute: 600,
+      notes: 'Canonical response',
+    });
+    await fixture.whenStable();
+    expect(element.querySelector('.notice-error')).toBeNull();
+    expect(element.querySelector('.notice[role="status"]')?.textContent).toContain('Task moved.');
+    expect(element.querySelector('.details .notes')?.textContent).toContain('Canonical response');
+    http.expectNone((request) => request.method === 'GET');
+  });
+
+  it('does not restore a moved task into a different week after navigation and a failed save', async () => {
+    const { fixture, http, element } = await render();
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    const update = http.expectOne('/api/tasks/42');
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    await TestBed.tick();
+    http.expectOne((request) => request.method === 'GET').flush([]);
+    await fixture.whenStable();
+    update.flush({}, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+    expect(element.querySelectorAll('.calendar-task')).toHaveLength(0);
+    expect(element.querySelector('.notice-error')?.textContent).toContain('Could not move task.');
+    http.expectNone((request) => request.method === 'GET');
+  });
+
+  it('reconciles a stale range response if navigation overlaps a successful move', async () => {
+    const { fixture, http, element } = await render();
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    const update = http.expectOne('/api/tasks/42');
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    await TestBed.tick();
+    http.expectOne((request) => request.method === 'GET').flush([]);
+    await fixture.whenStable();
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Previous week"]')!.click();
+    await TestBed.tick();
+    const returningRead = http.expectOne((request) => request.method === 'GET');
+    update.flush({ ...task, date: dateKey(calendarDayDate(0, 1)), startMinute: 600 });
+    await TestBed.tick();
+    returningRead.flush([task]);
+    await fixture.whenStable();
+    expect(element.querySelectorAll('.day-column')[1].textContent).toContain(task.title);
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('10:00');
+    http.expectNone((request) => request.method === 'GET');
+
+    // A later fresh read supersedes the correction (including subsequent external edits).
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    await TestBed.tick();
+    http.expectOne((request) => request.method === 'GET').flush([]);
+    await fixture.whenStable();
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Previous week"]')!.click();
+    await TestBed.tick();
+    http.expectOne((request) => request.method === 'GET').flush([task]);
+    await fixture.whenStable();
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('09:37');
+  });
+
+  it('rolls back only scheduling after a fresh read changes task metadata', async () => {
+    const { fixture, http, element } = await render();
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    const update = http.expectOne('/api/tasks/42');
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    await TestBed.tick();
+    http.expectOne((request) => request.method === 'GET').flush([]);
+    await fixture.whenStable();
+    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Previous week"]')!.click();
+    await TestBed.tick();
+    http
+      .expectOne((request) => request.method === 'GET')
+      .flush([{ ...task, title: 'Updated elsewhere', notes: 'Fresh notes', canEdit: false }]);
+    await fixture.whenStable();
+    update.flush({}, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('Updated elsewhere');
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('09:37');
+    element.querySelector<HTMLElement>('.calendar-task')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.details .notes')?.textContent).toContain('Fresh notes');
+    expect(element.querySelector('button[aria-label="Edit task"]')).toBeNull();
+    http.expectNone((request) => request.method === 'GET');
+  });
+
+  it('guards drag saves for read-only, missing, no-op and invalid targets', async () => {
+    const { fixture, http } = await render([
+      { ...task, canEdit: false },
+      { ...task, id: 43 },
+    ]);
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    for (const move of [
+      { id: task.id, day: 1, startMinute: 600 },
+      { id: 99, day: 1, startMinute: 600 },
+      { id: 43, day: 0, startMinute: 577 },
+      { id: 43, day: 7, startMinute: 600 },
+      { id: 43, day: 1, startMinute: 1430 },
+      { id: 43, day: 1, startMinute: -1 },
+    ])
+      grid.taskMoved.emit(move);
+    http.expectNone((request) => request.method !== 'GET');
+  });
+
+  it('persists moving into and out of the untimed strip', async () => {
+    const { fixture, http, element } = await render();
+    const grid = fixture.debugElement.query(By.directive(CalendarTimeGridComponent))
+      .componentInstance as CalendarTimeGridComponent;
+    const untimed = { ...task, startMinute: null, durationMinutes: null };
+    grid.taskMoved.emit({ id: task.id, day: 0, startMinute: null });
+    const update = http.expectOne('/api/tasks/42');
+    expect(update.request.body).toMatchObject({ startMinute: null, durationMinutes: null });
+    await fixture.whenStable();
+    expect(element.querySelector('.untimed-task')?.textContent).toContain(task.title);
+    update.flush(untimed);
+    await TestBed.tick();
+    http.expectNone((request) => request.method === 'GET');
+    await fixture.whenStable();
+    grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
+    const schedule = http.expectOne('/api/tasks/42');
+    expect(schedule.request.body).toMatchObject({ startMinute: 600, durationMinutes: 60 });
+    await fixture.whenStable();
+    expect(element.querySelector('.timed-drag')?.textContent).toContain(task.title);
+    schedule.flush({}, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+    expect(element.querySelector('.untimed-task')?.textContent).toContain(task.title);
+    expect(element.querySelector('.timed-drag')).toBeNull();
   });
 
   it('handles an empty database and creates using server-generated ids', async () => {
@@ -80,6 +332,24 @@ describe('API-backed calendar', () => {
     expect(element.querySelector('.details h3')?.textContent).toBe(task.title);
     expect(element.querySelectorAll('.calendar-task')).toHaveLength(1);
   });
+
+  it.each([
+    { message: 'Recipient email must belong to a registered user' },
+    { message: ['Cannot share a task with yourself'] },
+  ])(
+    'shows actionable sharing validation errors without closing the draft: $message',
+    async ({ message }) => {
+      const { fixture, http, element, dialog } = await render([]);
+      dialog.taskCreated.emit(task);
+      http.expectOne('/api/tasks').flush({ message }, { status: 400, statusText: 'Bad Request' });
+      await fixture.whenStable();
+      expect(element.querySelector('dialog')!.close).not.toHaveBeenCalled();
+      expect(element.querySelector('dialog [role="alert"]')?.textContent).toContain(
+        Array.isArray(message) ? message.join(' ') : message,
+      );
+      expect(element.textContent).not.toContain('Check the API/database connection');
+    },
+  );
 
   it('persists completion and does not pretend failed changes succeeded', async () => {
     const { fixture, http, element } = await render();

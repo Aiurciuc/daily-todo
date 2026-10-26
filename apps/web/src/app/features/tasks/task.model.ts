@@ -3,4 +3,5 @@ export interface Task {
   title: string;
   date: string;
   completed: boolean;
+  canEdit?: boolean;
 }

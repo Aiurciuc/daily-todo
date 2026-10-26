@@ -15,6 +15,8 @@ type SessionRow = { tokenHash: string; userId: number; expiresAt: Date };
 type TaskWhere = {
   id?: number | { in: number[] };
   ownerId?: number | null;
+  recipientId?: number | null;
+  OR?: TaskWhere[];
   date?: Date | { gte: Date; lt: Date };
   visibility?: Task['visibility'];
   completed?: boolean;
@@ -32,6 +34,8 @@ const dateOf = (date: string) => new Date(`${date}T00:00:00.000Z`);
 // Deliberately honor only the supplied predicates: an omitted owner predicate must leak
 // rows, not be silently repaired by the fake, so these tests exercise the real repository.
 function matches(task: Task, where: TaskWhere): boolean {
+  if (where.OR && !where.OR.some((branch) => matches(task, branch))) return false;
+  if (where.recipientId !== undefined && task.recipientId !== where.recipientId) return false;
   if (where.ownerId !== undefined && task.ownerId !== where.ownerId) return false;
   if (where.id !== undefined) {
     if (typeof where.id === 'number' ? task.id !== where.id : !where.id.in.includes(task.id)) {
@@ -91,7 +95,7 @@ describe('task ownership HTTP (real AppModule, repositories, services and guards
 
   function seed(ownerId: number | null, overrides: Partial<Task> = {}): Task {
     const task: Task = {
-      id: tasks.size + 1, ownerId, title: 'Fixture', date: dateOf(day),
+      id: tasks.size + 1, ownerId, recipientId: null, title: 'Fixture', date: dateOf(day),
       completed: false, position: 0, ...taskDetails, ...overrides,
     };
     tasks.set(task.id, task);
@@ -328,6 +332,141 @@ describe('task ownership HTTP (real AppModule, repositories, services and guards
     await http(alice.cookie).patch('/api/tasks/order').send({ date: nextDay, ids: [] }).expect(200, []);
     expectNoWrites();
     expect(tasks.get(onlyForeign.id)).toEqual(onlyForeign);
+  });
+
+  it('shares one live row with a registered recipient, preserving day/range filters for three users', async () => {
+    const alice = await register('alice');
+    const bob = await register('bob');
+    const carol = await register('carol');
+    const response = await http(alice.cookie).post('/api/tasks').send({
+      title: 'Shared meeting', date: day, visibility: 'SHARED',
+      sharedWith: '  BOB@Example.COM  ', startMinute: 540, durationMinutes: 60,
+    }).expect(201);
+    const id = (response.body as { id: number }).id;
+    expect(response.body).toMatchObject({ sharedWith: 'bob@example.com', canEdit: true });
+    expect(tasks.get(id)).toMatchObject({ ownerId: alice.id, recipientId: bob.id });
+    const bobOwn = seed(bob.id);
+    seed(alice.id); // Not shared.
+    seed(alice.id, { visibility: 'SHARED', sharedWith: 'bob@example.com' }); // Legacy label: no grant.
+    seed(alice.id, { visibility: 'PRIVATE', recipientId: bob.id }); // Both predicates required.
+    seed(alice.id, { visibility: 'SHARED', recipientId: carol.id });
+    seed(alice.id, { visibility: 'SHARED', recipientId: bob.id, date: dateOf(end) });
+    seed(alice.id, { visibility: 'SHARED', recipientId: bob.id, date: dateOf('2024-01-14') });
+    for (const query of [`date=${day}`, `from=${day}&to=${end}`]) {
+      for (const filters of ['', '&visibility=SHARED', '&visibility=PRIVATE', '&completed=true', '&completed=false', '&visibility=SHARED&completed=false']) {
+        const result = await http(bob.cookie).get(`/api/tasks?${query}${filters}`).expect(200);
+        const expected = filters.includes('completed=true') ? []
+          : filters.includes('visibility=PRIVATE') ? [bobOwn.id]
+          : filters.includes('visibility=SHARED') ? [id] : [id, bobOwn.id];
+        const rows = result.body as { id: number; canEdit: boolean }[];
+        expect(rows.map((row) => row.id).sort((a, b) => a - b)).toEqual(expected);
+        for (const row of rows) {
+          expect(row.canEdit).toBe(row.id === bobOwn.id);
+          expect(row).not.toHaveProperty('ownerId');
+          expect(row).not.toHaveProperty('recipientId');
+          expect(row).not.toHaveProperty('position');
+        }
+      }
+      const unrelated = await http(carol.cookie).get(`/api/tasks?${query}`).expect(200);
+      expect((unrelated.body as { id: number }[]).map((row) => row.id)).not.toContain(id);
+    }
+    const updated = await http(alice.cookie).put(`/api/tasks/${id}`).send({
+      title: 'Moved meeting', date: nextDay, visibility: 'SHARED', sharedWith: 'bob@example.com',
+      notes: 'Updated by owner', startMinute: 600, durationMinutes: 30,
+    }).expect(200);
+    expect(updated.body).toMatchObject({ id, canEdit: true });
+    const completed = await http(alice.cookie).patch(`/api/tasks/${id}`).send({ completed: true }).expect(200);
+    expect(completed.body).toMatchObject({ canEdit: true });
+    const moved = await http(bob.cookie).get(`/api/tasks?date=${nextDay}`).expect(200);
+    expect(moved.body).toEqual([{
+      id, title: 'Moved meeting', date: nextDay, completed: true, visibility: 'SHARED',
+      sharedWith: 'bob@example.com', notes: 'Updated by owner', startMinute: 600,
+      durationMinutes: 30, canEdit: false,
+    }]);
+    const oldDay = await http(bob.cookie).get(`/api/tasks?date=${day}`).expect(200);
+    expect((oldDay.body as { id: number }[]).map((row) => row.id)).not.toContain(id);
+    // Replacing the recipient revokes Bob immediately and grants Carol the very same row.
+    await http(alice.cookie).put(`/api/tasks/${id}`).send({
+      title: 'Carol meeting', date: nextDay, visibility: 'SHARED', sharedWith: 'carol@example.com',
+    }).expect(200);
+    await http(bob.cookie).get(`/api/tasks?date=${nextDay}`).expect(200, []);
+    const switched = await http(carol.cookie).get(`/api/tasks?from=${day}&to=${end}`).expect(200);
+    expect((switched.body as { id: number; canEdit: boolean }[]).find((row) => row.id === id)).toMatchObject({ canEdit: false });
+    // PRIVATE ignores any old email and clears the persisted grant.
+    const unshared = await http(alice.cookie).put(`/api/tasks/${id}`).send({
+      title: 'Private now', date: nextDay, visibility: 'PRIVATE', sharedWith: 'bob@example.com',
+    }).expect(200);
+    expect(unshared.body).toMatchObject({ sharedWith: null, canEdit: true });
+    expect(tasks.get(id)).toMatchObject({ recipientId: null, sharedWith: null });
+    await http(carol.cookie).get(`/api/tasks?date=${nextDay}`).expect(200, []);
+    expect([...tasks.values()].filter((row) => row.id === id)).toHaveLength(1);
+  });
+
+  it('rejects missing, malformed, unknown and self emails with clear 400s without writes', async () => {
+    const alice = await register('alice');
+    await register('bob');
+    await register('carol');
+    const own = seed(alice.id);
+    const before = snapshot();
+    for (const sharedWith of [undefined, null, '', '  ', 'Design Team', 'bob@', 'a@b', 'missing@example.com', ' ALICE@Example.com ', `${'x'.repeat(243)}@example.com`]) {
+      for (const method of ['post', 'put'] as const) {
+        const response = await http(alice.cookie)[method](method === 'post' ? '/api/tasks' : `/api/tasks/${own.id}`)
+          .send({ title: 'Invalid', date: day, visibility: 'SHARED', sharedWith }).expect(400);
+        expect(JSON.stringify(response.body)).toMatch(/email|sharedWith|yourself/i);
+        expect(snapshot()).toEqual(before);
+        expectNoWrites();
+      }
+    }
+  });
+
+  it('keeps recipients read-only for update, completion, deletion and owner-only mixed-day reorder', async () => {
+    const alice = await register('alice');
+    const bob = await register('bob');
+    const carol = await register('carol');
+    const shared = seed(alice.id, { visibility: 'SHARED', sharedWith: 'bob@example.com', recipientId: bob.id });
+    const own = [seed(bob.id, { position: 5 }), seed(bob.id, { position: 8 })];
+    const differentDay = seed(bob.id, { date: dateOf(nextDay) });
+    const before = snapshot();
+    for (const actor of [bob, carol]) {
+      await http(actor.cookie).put(`/api/tasks/${shared.id}`).send({ title: 'Stolen', date: day }).expect(404);
+      await http(actor.cookie).patch(`/api/tasks/${shared.id}`).send({ completed: true }).expect(404);
+      await http(actor.cookie).delete(`/api/tasks/${shared.id}`).expect(404);
+      expect(snapshot()).toEqual(before);
+    }
+    database.task.update.mockClear();
+    database.task.delete.mockClear();
+    for (const ids of [[shared.id, ...own.map((row) => row.id)], [own[0].id, shared.id], [own[0].id, differentDay.id]]) {
+      await http(bob.cookie).patch('/api/tasks/order').send({ date: day, ids }).expect(409);
+      expect(snapshot()).toEqual(before);
+      expectNoWrites();
+    }
+    const order = await http(bob.cookie).patch('/api/tasks/order').send({ date: day, ids: [own[1].id, own[0].id] }).expect(200);
+    expect((order.body as { id: number; canEdit: boolean }[]).map((row) => [row.id, row.canEdit])).toEqual([
+      [own[1].id, true], [own[0].id, true],
+    ]);
+    expect(tasks.get(shared.id)).toEqual(shared);
+    // Owner deletion removes the recipient's copy as well (there is no duplicate task).
+    await http(alice.cookie).delete(`/api/tasks/${shared.id}`).expect(204);
+    const remaining = await http(bob.cookie).get(`/api/tasks?date=${day}`).expect(200);
+    expect((remaining.body as { id: number }[]).map((row) => row.id)).not.toContain(shared.id);
+  });
+
+  it('rejects supplied recipientId on every request surface before persistence', async () => {
+    const alice = await register('alice');
+    const bob = await register('bob');
+    const carol = await register('carol');
+    const own = seed(alice.id);
+    for (const recipientId of [bob.id, carol.id, null]) {
+      await http(alice.cookie).post('/api/tasks').send({ title: 'Injected', date: day, visibility: 'SHARED', sharedWith: 'bob@example.com', recipientId }).expect(400);
+      await http(alice.cookie).put(`/api/tasks/${own.id}`).send({ title: 'Injected', date: day, recipientId }).expect(400);
+      await http(alice.cookie).patch(`/api/tasks/${own.id}`).send({ completed: true, recipientId }).expect(400);
+      await http(alice.cookie).patch('/api/tasks/order').send({ date: day, ids: [own.id], recipientId }).expect(400);
+      for (const query of [`date=${day}`, `from=${day}&to=${end}`]) {
+        await http(alice.cookie).get(`/api/tasks?${query}&recipientId=${recipientId}`).expect(400);
+      }
+    }
+    expectNoWrites();
+    expect(tasks.get(own.id)).toEqual(own);
   });
 
   it('keeps the real session and CSRF guards active ahead of persistence', async () => {

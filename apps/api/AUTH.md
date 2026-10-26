@@ -1,8 +1,9 @@
 # API authentication deployment
 
 Run `npm run db:migrate --workspace apps/api` before starting this version. The
-additive migration leaves existing tasks unassigned (`owner_id IS NULL`), retained
-but invisible. Signup never claims legacy tasks. SHARED remains a display label.
+ownership migration leaves pre-authentication tasks unassigned (`owner_id IS NULL`), retained
+but invisible. Signup never claims legacy tasks. The email-sharing migration adds
+nullable recipient grants without granting access to existing SHARED labels.
 
 No additional dependencies are needed. Passwords use Node scrypt with random
 salts; session cookies contain 32-byte random tokens, only SHA-256 hashes persist.

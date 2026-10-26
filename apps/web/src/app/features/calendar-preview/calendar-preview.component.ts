@@ -3,13 +3,11 @@ import {
   Component,
   computed,
   inject,
+  linkedSignal,
   signal,
   viewChild,
   DestroyRef,
 } from '@angular/core';
-import { HttpErrorResponse } from '@angular/common/http';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Observable } from 'rxjs';
 import { CalendarHeaderComponent } from './calendar-header/calendar-header.component';
 import { CalendarToolbarComponent } from './calendar-toolbar/calendar-toolbar.component';
 import { CalendarTimeGridComponent } from './calendar-time-grid/calendar-time-grid.component';
@@ -18,7 +16,13 @@ import { MiniCalendarComponent } from './mini-calendar/mini-calendar.component';
 import { TaskDetailsComponent } from './task-details/task-details.component';
 import { UrgentTasksComponent } from './urgent-tasks/urgent-tasks.component';
 import { TaskDialogComponent } from './task-dialog/task-dialog.component';
-import { CalendarTask, CalendarView, NewCalendarTask, TaskFilter } from './calendar-preview.models';
+import {
+  CalendarTask,
+  CalendarTaskMove,
+  CalendarView,
+  NewCalendarTask,
+  TaskFilter,
+} from './calendar-preview.models';
 import {
   buildMonthDays,
   calendarDayDate,
@@ -27,10 +31,12 @@ import {
   dayDifference,
   localDate,
 } from './calendar-preview.utils';
-import { CalendarApiService } from './calendar-api.service';
+import { CalendarStore } from './state/calendar.store';
+import { toCalendarTask } from './state/calendar-task.helpers';
 
 @Component({
   selector: 'app-calendar-preview',
+  providers: [CalendarStore],
   imports: [
     CalendarHeaderComponent,
     CalendarToolbarComponent,
@@ -46,7 +52,11 @@ import { CalendarApiService } from './calendar-api.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CalendarPreviewComponent {
-  private readonly api = inject(CalendarApiService);
+  protected readonly store = inject(CalendarStore);
+  // Mutation feedback comes from the store; clipboard feedback remains UI-local.
+  protected readonly notice = linkedSignal(() =>
+    this.store.saving() ? null : this.store.notice(),
+  );
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = viewChild.required(TaskDialogComponent);
   protected readonly view = signal<CalendarView>('Week');
@@ -54,9 +64,6 @@ export class CalendarPreviewComponent {
   protected readonly offset = signal(0);
   protected readonly activeDay = signal((new Date().getDay() + 6) % 7);
   protected readonly monthOffset = signal(0);
-  protected readonly notice = signal('');
-  protected readonly saving = signal(false);
-  protected readonly mutationError = signal('');
   protected readonly editingId = signal<number | null>(null);
   protected readonly selectedId = signal<number | null>(null);
   protected readonly rangeStart = computed(() => calendarDayDate(this.offset(), 0));
@@ -76,18 +83,9 @@ export class CalendarPreviewComponent {
       to: dateKey(dateFromParts(end.getFullYear(), end.getMonth(), end.getDate() + 1)),
     };
   });
-  protected readonly resource = this.api.list(this.query);
-  protected readonly tasks = computed<CalendarTask[]>(() => {
-    const items = this.resource.hasValue() ? this.resource.value() : [];
-    return items.map((task) => ({
-      ...task,
-      day: dayDifference(localDate(task.date), this.rangeStart()),
-      start: (task.startMinute ?? 0) / 60,
-      duration: (task.durationMinutes ?? 0) / 60,
-      scheduled: task.startMinute !== null,
-      shared: task.visibility === 'SHARED',
-    }));
-  });
+  protected readonly tasks = computed<CalendarTask[]>(() =>
+    this.store.tasks().map((task) => toCalendarTask(task, this.rangeStart())),
+  );
   protected readonly visibleTasks = computed(() =>
     this.tasks().filter(
       (task) =>
@@ -131,6 +129,7 @@ export class CalendarPreviewComponent {
     }
     const id = Number(params.get('task'));
     if (Number.isInteger(id) && id > 0) this.selectedId.set(id);
+    this.store.setRange(this.query);
   }
 
   protected selectTask(task: CalendarTask): void {
@@ -182,46 +181,55 @@ export class CalendarPreviewComponent {
   }
 
   protected openTask(day = this.activeDay(), hour = 9): void {
-    if (this.saving()) return;
+    if (this.store.saving()) return;
     this.editingId.set(null);
-    this.mutationError.set('');
+    this.store.clearMutationError();
     const date = this.view() === 'Month' ? this.miniMonth() : calendarDayDate(this.offset(), day);
     this.dialog().open(dateKey(date), hour);
   }
 
   protected editTask(): void {
     const task = this.selected();
-    if (!task || this.saving()) return;
+    if (!task || task.canEdit === false || this.store.saving()) return;
     this.editingId.set(task.id);
-    this.mutationError.set('');
+    this.store.clearMutationError();
     this.dialog().edit(task);
   }
 
   protected saveTask(draft: NewCalendarTask): void {
-    const id = this.editingId();
-    this.mutate(id === null ? this.api.create(draft) : this.api.update(id, draft), (task) => {
+    const onSaved = (task: { id: number; date: string }) => {
       this.dialog().close(true);
       this.chooseDate(localDate(task.date));
       this.selectedId.set(task.id);
-      this.notice.set(id === null ? 'Task created.' : 'Task updated.');
-    });
+    };
+    const id = this.editingId();
+    if (id === null) this.store.createTask(draft, onSaved);
+    else this.store.updateTask(id, draft, onSaved);
+  }
+
+  protected moveTask(move: CalendarTaskMove): void {
+    if (!Number.isInteger(move.day) || move.day < 0 || move.day > 6) return;
+    const date = dateKey(calendarDayDate(this.offset(), move.day));
+    if (this.store.moveTask(move.id, date, move.startMinute)) {
+      this.activeDay.set(move.day);
+      this.selectedId.set(move.id);
+    }
   }
 
   protected toggleCompleted(): void {
     const task = this.selected();
-    if (task)
-      this.mutate(this.api.setCompleted(task.id, !task.completed), () =>
-        this.notice.set(task.completed ? 'Task reopened.' : 'Task completed.'),
-      );
+    if (task) this.store.toggleCompleted(task.id);
   }
 
   protected deleteTask(): void {
     const task = this.selected();
-    if (task && window.confirm(`Delete “${task.title}”?`)) {
-      this.mutate(this.api.remove(task.id), () => {
-        this.selectedId.set(null);
-        this.notice.set('Task deleted.');
-      });
+    if (
+      task &&
+      task.canEdit !== false &&
+      !this.store.saving() &&
+      window.confirm(`Delete “${task.title}”?`)
+    ) {
+      this.store.deleteTask(task.id, () => this.selectedId.set(null));
     }
   }
 
@@ -232,30 +240,12 @@ export class CalendarPreviewComponent {
     url.search = new URLSearchParams({ task: String(task.id), date: task.date }).toString();
     try {
       await navigator.clipboard.writeText(url.toString());
-      this.notice.set('Task link copied.');
+      this.notice.set({ kind: 'success', message: 'Task link copied.' });
     } catch {
-      this.notice.set('Unable to access clipboard. Task link: ' + url.toString());
+      this.notice.set({
+        kind: 'success',
+        message: 'Unable to access clipboard. Task link: ' + url.toString(),
+      });
     }
-  }
-
-  private mutate<T>(request: Observable<T>, success: (value: T) => void): void {
-    if (this.saving()) return;
-    this.saving.set(true);
-    this.mutationError.set('');
-    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (value) => {
-        this.saving.set(false);
-        success(value);
-        this.resource.reload();
-      },
-      error: (error: unknown) => {
-        this.saving.set(false);
-        this.mutationError.set(
-          error instanceof HttpErrorResponse && error.status === 404
-            ? 'This task no longer exists. Refresh the calendar.'
-            : 'Could not save changes. Check the API/database connection and try again.',
-        );
-      },
-    });
   }
 }

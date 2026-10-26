@@ -23,6 +23,6 @@ export class TaskListComponent {
   protected toggleCompletion(task: Task, event: Event): void {
     // The parent owns optimistic state; don't retain a separate checkbox state.
     (event.target as HTMLInputElement).checked = task.completed;
-    this.completionToggled.emit(task);
+    if (this.canInteract() && task.canEdit !== false) this.completionToggled.emit(task);
   }
 }

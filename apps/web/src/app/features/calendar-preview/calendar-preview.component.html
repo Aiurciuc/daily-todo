@@ -11,11 +11,7 @@
   (createRequested)="openTask()"
 />
 <main class="dashboard">
-  <section
-    class="workspace"
-    aria-label="Calendar workspace"
-    [attr.aria-busy]="resource.isLoading()"
-  >
+  <section class="workspace" aria-label="Calendar workspace" [attr.aria-busy]="store.loading()">
     <app-calendar-toolbar
       [view]="view()"
       [filter]="filter()"
@@ -32,16 +28,16 @@
       (todayRequested)="resetToday()"
       (createRequested)="openTask()"
     />
-    @if (resource.isLoading()) {
+    @if (store.loading()) {
       <p class="state-message" role="status">Loading tasks…</p>
     }
-    @if (resource.error()) {
+    @if (store.loadError()) {
       <div class="state-message" role="alert">
         Unable to load tasks. Check the API/database connection.
-        <button class="outline-button" (click)="resource.reload()">Retry</button>
+        <button class="outline-button" (click)="store.reload()">Retry</button>
       </div>
     } @else {
-      @if (!resource.isLoading() && visibleTasks().length === 0) {
+      @if (!store.loading() && visibleTasks().length === 0) {
         <p class="state-message">
           No tasks for this period and filter. Create a task to get started.
         </p>
@@ -53,6 +49,8 @@
           [dayView]="view() === 'Day'"
           [activeDay]="activeDay()"
           [offset]="offset()"
+          [interactionDisabled]="store.saving() || store.loading()"
+          (taskMoved)="moveTask($event)"
           (daySelected)="activeDay.set($event)"
           (taskSelected)="selectTask($event)"
           (slotSelected)="activeDay.set($event.day); openTask($event.day, $event.hour)"
@@ -65,8 +63,8 @@
         />
       }
     }
-    @if (mutationError()) {
-      <p class="state-message" role="alert">{{ mutationError() }}</p>
+    @if (store.mutationError()) {
+      <p class="state-message" role="alert">{{ store.mutationError() }}</p>
     }
   </section>
   <aside class="inspector" aria-label="Calendar and task details">
@@ -80,11 +78,11 @@
       (dateSelected)="chooseDate($event)"
     />
     @if (selected(); as task) {
-      <div [attr.inert]="saving() ? '' : null">
+      <div [attr.inert]="store.saving() ? '' : null">
         <app-task-details
           [task]="task"
           [selectedDate]="selectedDate()"
-          [saving]="saving()"
+          [saving]="store.saving()"
           (deleteRequested)="deleteTask()"
           (completionToggled)="toggleCompleted()"
           (editRequested)="editTask()"
@@ -97,12 +95,24 @@
     <app-urgent-tasks [tasks]="urgentTasks()" (taskSelected)="selectTask($event)" />
   </aside>
 </main>
-@if (notice()) {
-  <div class="notice" role="status">
-    {{ notice() }}
-    <button class="icon-button" aria-label="Dismiss message" (click)="notice.set('')">
+@if (notice(); as feedback) {
+  <div
+    class="notice"
+    [class.notice-error]="feedback.kind === 'error'"
+    [attr.role]="feedback.kind === 'error' ? 'alert' : 'status'"
+  >
+    {{ feedback.message }}
+    <button
+      class="icon-button"
+      aria-label="Dismiss message"
+      (click)="notice.set(null); store.dismissNotice()"
+    >
       <span class="icon">close</span>
     </button>
   </div>
 }
-<app-task-dialog [saving]="saving()" [error]="mutationError()" (taskCreated)="saveTask($event)" />
+<app-task-dialog
+  [saving]="store.saving()"
+  [error]="store.mutationError()"
+  (taskCreated)="saveTask($event)"
+/>

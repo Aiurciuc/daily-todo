@@ -25,6 +25,7 @@ const database = new PrismaClient({
 describe('real PostgreSQL task persistence (disposable test database only)', () => {
   let ownerId: number;
   let otherOwnerId: number;
+  let recipientEmail: string;
 
   beforeAll(async () => {
     await database.$connect();
@@ -37,6 +38,7 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
       data: { name: 'Other owner', email: `other-${suffix}@example.com`, passwordHash: 'unused' },
     });
     otherOwnerId = other.id;
+    recipientEmail = other.email;
   });
   afterAll(async () => {
     try {
@@ -61,9 +63,15 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
         durationMinutes: 90,
         visibility: TaskVisibility.SHARED,
         notes: 'Review layouts',
-        sharedWith: 'Design Team',
+        sharedWith: recipientEmail,
       });
       ids.push(shared.id);
+      expect(shared).toMatchObject({ sharedWith: recipientEmail, recipientId: otherOwnerId });
+      expect(await repository.findByDay(otherOwnerId, date)).toContainEqual(shared);
+      expect(await repository.findByRange(otherOwnerId, date, end, { visibility: TaskVisibility.SHARED })).toContainEqual(shared);
+      await expect(repository.update(otherOwnerId, shared.id, 'Stolen', date, taskDetails)).rejects.toMatchObject({ code: 'P2025' });
+      await expect(repository.setCompleted(otherOwnerId, shared.id, true)).rejects.toMatchObject({ code: 'P2025' });
+      await expect(repository.remove(otherOwnerId, shared.id)).rejects.toMatchObject({ code: 'P2025' });
       const privateTask = await repository.create(ownerId, title, date);
       ids.push(privateTask.id);
       const boundary = await repository.create(ownerId, title, end);
@@ -81,6 +89,8 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
       expect(incomplete.map((task) => task.id)).not.toContain(shared.id);
       expect(incomplete.map((task) => task.id)).not.toContain(boundary.id);
       expect(incomplete.map((task) => task.id)).toContain(privateTask.id);
+      expect((await repository.findByRange(otherOwnerId, date, end, { completed: true })).map((task) => task.id)).toContain(shared.id);
+      expect((await repository.findByDay(otherOwnerId, date, { completed: false })).map((task) => task.id)).not.toContain(shared.id);
       // Reorder only this user’s tasks on the date.
       const day = await repository.findByDay(ownerId, date);
       const reordered = await repository.reorder(ownerId, date, day.map((task) => task.id).reverse());
@@ -90,6 +100,9 @@ describe('real PostgreSQL task persistence (disposable test database only)', () 
         notes: 'Review layouts',
         completed: true,
       });
+      const unshared = await repository.update(ownerId, shared.id, title, date, taskDetails);
+      expect(unshared).toMatchObject({ recipientId: null, sharedWith: null });
+      expect((await repository.findByDay(otherOwnerId, date)).map((task) => task.id)).not.toContain(shared.id);
     } finally {
       await database.task.deleteMany({ where: { id: { in: ids } } });
     }

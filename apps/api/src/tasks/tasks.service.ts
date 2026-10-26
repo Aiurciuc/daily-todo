@@ -11,7 +11,7 @@ export class TasksService {
   constructor(private readonly tasks: TasksRepository) {}
 
   async list(ownerId: number, date: Date, filters: TaskFilters = {}): Promise<TaskResponseDto[]> {
-    return (await this.tasks.findByDay(ownerId, date, filters)).map((task) => new TaskResponseDto(task));
+    return (await this.tasks.findByDay(ownerId, date, filters)).map((task) => new TaskResponseDto(task, ownerId));
   }
 
   async listCalendar(ownerId: number, query: TaskListQueryDto): Promise<TaskResponseDto[]> {
@@ -31,7 +31,7 @@ export class TasksService {
       throw new BadRequestException('Range must span 1 to 366 days; to is exclusive');
     }
     return (await this.tasks.findByRange(ownerId, from, to, filters)).map(
-      (task) => new TaskResponseDto(task),
+      (task) => new TaskResponseDto(task, ownerId),
     );
   }
 
@@ -41,12 +41,13 @@ export class TasksService {
     date: Date,
     input: Partial<CreateTaskDto> = {},
   ): Promise<TaskResponseDto> {
-    return new TaskResponseDto(await this.tasks.create(ownerId, title, date, this.details(input)));
+    return new TaskResponseDto(await this.tasks.create(ownerId, title, date, this.details(input)), ownerId);
   }
 
   async update(ownerId: number, id: number, input: CreateTaskDto): Promise<TaskResponseDto> {
     return new TaskResponseDto(
       await this.tasks.update(ownerId, id, input.title, parseDay(input.date), this.details(input)),
+      ownerId,
     );
   }
 
@@ -76,10 +77,10 @@ export class TasksService {
   }
 
   async reorder(ownerId: number, date: Date, ids: number[]): Promise<TaskResponseDto[]> {
-    return (await this.tasks.reorder(ownerId, date, ids)).map((task) => new TaskResponseDto(task));
+    return (await this.tasks.reorder(ownerId, date, ids)).map((task) => new TaskResponseDto(task, ownerId));
   }
 
   async setCompleted(ownerId: number, id: number, completed: boolean): Promise<TaskResponseDto> {
-    return new TaskResponseDto(await this.tasks.setCompleted(ownerId, id, completed));
+    return new TaskResponseDto(await this.tasks.setCompleted(ownerId, id, completed), ownerId);
   }
 }

@@ -33,10 +33,17 @@ export class TaskDialogComponent {
   protected readonly titleError = signal('');
   protected readonly editing = signal(false);
   protected readonly unscheduled = signal(false);
+  protected readonly shared = signal(false);
+
+  protected setShared(shared: boolean): void {
+    this.shared.set(shared);
+    if (!shared) this.setValue('sharedWith', '');
+  }
 
   open(date: string, hour = 9): void {
     this.form().nativeElement.reset();
     this.editing.set(false);
+    this.shared.set(false);
     this.unscheduled.set(false);
     this.setValue('date', date);
     this.setValue('time', formatCalendarTime(hour));
@@ -47,6 +54,7 @@ export class TaskDialogComponent {
   edit(task: CalendarTask): void {
     this.open(task.date, task.start);
     this.editing.set(true);
+    this.shared.set(task.shared);
     this.unscheduled.set(task.scheduled === false);
     this.setValue('title', task.title);
     this.setValue('duration', String(task.duration * 60 || 60));
@@ -70,6 +78,8 @@ export class TaskDialogComponent {
     event.preventDefault();
     if (this.saving()) return;
     const form = this.form().nativeElement;
+    const recipient = form.elements.namedItem('sharedWith') as HTMLInputElement;
+    recipient.value = this.shared() ? recipient.value.trim().toLowerCase() : '';
     const data = new FormData(form);
     const title = String(data.get('title') ?? '').trim();
     if (!title) {
@@ -95,7 +105,7 @@ export class TaskDialogComponent {
       durationMinutes,
       visibility: data.get('visibility') === 'SHARED' ? 'SHARED' : 'PRIVATE',
       notes: String(data.get('notes') ?? '').trim() || null,
-      sharedWith: String(data.get('sharedWith') ?? '').trim() || null,
+      sharedWith: this.shared() ? recipient.value : null,
     });
     // The parent closes only after persistence succeeds; failed submissions keep the draft.
   }

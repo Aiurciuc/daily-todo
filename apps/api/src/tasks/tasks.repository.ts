@@ -1,5 +1,6 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Prisma, Task } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Prisma, Task, TaskVisibility } from '@prisma/client';
+import { isEmail } from 'class-validator';
 import { DatabaseService } from '../database/database.service';
 import { TaskDetails, TaskFilters } from './task.types';
 
@@ -12,10 +13,40 @@ export class TasksRepository {
     if (!Number.isSafeInteger(ownerId) || ownerId < 1) throw new UnauthorizedException();
   }
 
+  // Resolve grants inside the write transaction, never from a client-supplied ID.
+  private async sharing(
+    transaction: Prisma.TransactionClient,
+    ownerId: number,
+    details?: TaskDetails,
+  ): Promise<{ sharedWith: string | null; recipientId: number | null }> {
+    if (details?.visibility !== TaskVisibility.SHARED) {
+      return { sharedWith: null, recipientId: null };
+    }
+    const email = typeof details.sharedWith === 'string' ? details.sharedWith.trim().toLowerCase() : '';
+    if (!email || email.length > 254 || !isEmail(email)) {
+      throw new BadRequestException('SHARED tasks require a valid recipient email (maximum 254 characters)');
+    }
+    const recipient = await transaction.user.findUnique({ where: { email }, select: { id: true } });
+    if (!recipient) throw new BadRequestException('Recipient email must belong to a registered user');
+    if (recipient.id === ownerId) throw new BadRequestException('Cannot share a task with yourself');
+    return { sharedWith: email, recipientId: recipient.id };
+  }
+
+  private metadata(details?: TaskDetails): Partial<TaskDetails> {
+    if (!details) return {};
+    // Explicitly pick writable metadata; even internal callers cannot inject ownership/grants.
+    return {
+      startMinute: details.startMinute,
+      durationMinutes: details.durationMinutes,
+      visibility: details.visibility,
+      notes: details.notes,
+    };
+  }
+
   findByDay(ownerId: number, date: Date, filters: TaskFilters = {}): Promise<Task[]> {
     this.requireOwner(ownerId);
     return this.database.task.findMany({
-      where: { date, ...filters, ownerId },
+      where: { date, ...filters, OR: [{ ownerId }, { visibility: TaskVisibility.SHARED, recipientId: ownerId }] },
       orderBy: [{ position: 'asc' }, { id: 'asc' }],
     });
   }
@@ -23,7 +54,7 @@ export class TasksRepository {
   findByRange(ownerId: number, from: Date, to: Date, filters: TaskFilters): Promise<Task[]> {
     this.requireOwner(ownerId);
     return this.database.task.findMany({
-      where: { date: { gte: from, lt: to }, ...filters, ownerId },
+      where: { date: { gte: from, lt: to }, ...filters, OR: [{ ownerId }, { visibility: TaskVisibility.SHARED, recipientId: ownerId }] },
       orderBy: [{ date: 'asc' }, { startMinute: 'asc' }, { position: 'asc' }, { id: 'asc' }],
     });
   }
@@ -32,6 +63,7 @@ export class TasksRepository {
     this.requireOwner(ownerId);
     return this.database.$transaction(
       async (transaction) => {
+        const sharing = await this.sharing(transaction, ownerId, details);
         const last = await transaction.task.aggregate({
           where: { date, ownerId },
           _max: { position: true },
@@ -41,7 +73,8 @@ export class TasksRepository {
             title,
             date,
             position: (last._max.position ?? -1) + 1,
-            ...details,
+            ...this.metadata(details),
+            ...sharing,
             ownerId,
           },
         });
@@ -77,6 +110,7 @@ export class TasksRepository {
     return this.database.$transaction(
       async (transaction) => {
         const current = await transaction.task.findUniqueOrThrow({ where: { id, ownerId } });
+        const sharing = await this.sharing(transaction, ownerId, details);
         let position = current.position;
         if (current.date.getTime() !== date.getTime()) {
           const last = await transaction.task.aggregate({
@@ -87,7 +121,7 @@ export class TasksRepository {
         }
         return transaction.task.update({
           where: { id, ownerId },
-          data: { title, date, position, ...details },
+          data: { title, date, position, ...this.metadata(details), ...sharing },
         });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

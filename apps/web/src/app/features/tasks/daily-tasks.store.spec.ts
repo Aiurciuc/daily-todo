@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { DailyTasksComponent } from './daily-tasks/daily-tasks.component';
 import { DailyTasksStore } from './daily-tasks.store';
 
-async function setup() {
+async function setup(received = false) {
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), DailyTasksStore],
   });
@@ -16,6 +16,7 @@ async function setup() {
     title: `Task ${id}`,
     date: store.day(),
     completed: false,
+    canEdit: !(received && id === 2),
   }));
   http.expectOne((request) => request.method === 'GET').flush(tasks);
   await TestBed.tick();
@@ -23,6 +24,23 @@ async function setup() {
 }
 
 describe('DailyTasksStore', () => {
+  it('guards received tasks and sends only owned IDs for mixed-list reorders', async () => {
+    const { store, http, tasks } = await setup(true);
+    store.setCompleted(tasks[1]);
+    store.reorder({ previousIndex: 1, currentIndex: 0, taskId: 2 });
+    http.expectNone((request) => request.method !== 'GET');
+    store.reorder({ previousIndex: 2, currentIndex: 0, taskId: 3 });
+    const first = http.expectOne('/api/tasks/order');
+    expect(first.request.body.ids).toEqual([3, 1]);
+    store.reorder({ previousIndex: 1, currentIndex: 0, taskId: 1 });
+    first.flush([tasks[2], tasks[0]]);
+    const second = http.expectOne('/api/tasks/order');
+    expect(second.request.body.ids).toEqual([1, 3]);
+    second.flush([tasks[0], tasks[2]]);
+    expect(store.tasks()).toContainEqual(tasks[1]);
+    http.verify();
+  });
+
   it('immediately reorders, restores the successful base on failure and shows toasts', async () => {
     const { store, http, tasks } = await setup();
     store.reorder({ previousIndex: 0, currentIndex: 1 });

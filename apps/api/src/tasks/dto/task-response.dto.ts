@@ -40,7 +40,12 @@ export class TaskResponseDto {
   @Expose()
   readonly sharedWith: string | null;
 
-  constructor(task: Task) {
+  @ApiProperty({ type: Boolean, description: "Only the owner can modify this task" })
+  @Expose()
+  readonly canEdit: boolean;
+
+  constructor(task: Task, actorId: number) {
+    this.canEdit = task.ownerId === actorId;
     this.id = task.id;
     this.title = task.title;
     this.date = task.date.toISOString().slice(0, 10);

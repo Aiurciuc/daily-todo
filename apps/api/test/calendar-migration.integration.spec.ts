@@ -73,6 +73,22 @@ describe('calendar migration preserves legacy tasks', () => {
       expect(columns.rows.map((row: { column_name: string }) => row.column_name)).not.toContain(
         'project',
       );
+      // Even a legacy label matching a registered account must not become a grant.
+      await client.query("UPDATE tasks SET visibility = 'SHARED', shared_with = 'first@example.com'");
+      const beforeSharing = await client.query('SELECT * FROM tasks ORDER BY id');
+      await migration('20261017120000_task_email_sharing');
+      const afterSharing = await client.query('SELECT * FROM tasks ORDER BY id');
+      expect(afterSharing.rows).toEqual(beforeSharing.rows.map((row: Record<string, unknown>) => ({
+        ...row, recipient_id: null,
+      })));
+      expect((await client.query(
+        'SELECT character_maximum_length FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 AND column_name = $3',
+        [schema, 'tasks', 'shared_with'],
+      )).rows).toEqual([{ character_maximum_length: 254 }]);
+      expect((await client.query(
+        'SELECT indexname FROM pg_indexes WHERE schemaname = $1 AND indexname = $2',
+        [schema, 'tasks_recipient_id_task_date_idx'],
+      )).rows).toHaveLength(1);
     } finally {
       // A failed SQL migration may leave its explicit transaction aborted.
       await client.query('ROLLBACK');

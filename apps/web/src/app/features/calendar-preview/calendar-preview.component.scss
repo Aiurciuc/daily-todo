@@ -53,6 +53,11 @@
   max-width: calc(100% - 32px);
   z-index: 5;
 }
+.notice-error {
+  background: #fff0ef;
+  border-color: #c43b32;
+  color: #9d2821;
+}
 @media (max-width: 1199px) {
   .dashboard {
     grid-template-columns: minmax(0, 1fr);

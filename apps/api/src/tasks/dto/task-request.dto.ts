@@ -89,8 +89,11 @@ export class CreateTaskDto extends TaskDayQueryDto {
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @MaxLength(120)
-  @ApiPropertyOptional({ type: String, maxLength: 120, nullable: true })
+  @MaxLength(254)
+  @ApiPropertyOptional({
+    type: String, maxLength: 254, nullable: true,
+    description: "Registered recipient email, required for SHARED; ignored for PRIVATE",
+  })
   sharedWith?: string | null;
 }
 

@@ -55,6 +55,16 @@ describe('TaskListComponent', () => {
     expect(reorder).toHaveBeenCalledWith({ previousIndex: 1, currentIndex: 0, taskId: 2 });
   });
 
+  it('disables completion and dragging for received tasks', async () => {
+    fixture.componentRef.setInput('tasks', [{ ...tasks[0], canEdit: false }, tasks[1]]);
+    await fixture.whenStable();
+    const received = element.querySelector('li')!;
+    expect(received.querySelector('button')!.disabled).toBe(true);
+    expect(received.querySelector('input')!.disabled).toBe(true);
+    expect(received.classList.contains('cdk-drag-disabled')).toBe(true);
+    expect(received.textContent).toContain('Read-only');
+  });
+
   it('reuses list rows when the parent supplies a reordered array', async () => {
     const rows = Array.from(element.querySelectorAll('li'));
     fixture.componentRef.setInput('tasks', [...tasks].reverse());

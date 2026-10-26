@@ -22,15 +22,17 @@ import { TerraButton } from '../button';
         >
           <terra-icon name="link" />
         </button>
-        <button
-          terraButton
-          size="icon"
-          variant="ghost"
-          aria-label="Edit task"
-          (click)="editRequested.emit()"
-        >
-          <terra-icon name="edit" />
-        </button>
+        @if (canEdit()) {
+          <button
+            terraButton
+            size="icon"
+            variant="ghost"
+            aria-label="Edit task"
+            (click)="editRequested.emit()"
+          >
+            <terra-icon name="edit" />
+          </button>
+        }
       </div>
     </header>
     <h3>{{ task().title }}</h3>
@@ -40,15 +42,20 @@ import { TerraButton } from '../button';
     <h4>Agenda & Notes</h4>
     <p class="notes">{{ task().notes || 'No notes added.' }}</p>
     <div class="detail-actions">
-      <ng-content select="[inspectorAction]" /><button
-        terraButton
-        variant="outlined"
-        class="secondary"
-        [attr.aria-pressed]="!!task().completed"
-        (click)="completionToggled.emit()"
-      >
-        <terra-icon name="check_circle" />{{ task().completed ? 'Reopen task' : 'Mark Completed' }}
-      </button>
+      <ng-content select="[inspectorAction]" />
+      @if (canEdit()) {
+        <button
+          terraButton
+          variant="outlined"
+          class="secondary"
+          [attr.aria-pressed]="!!task().completed"
+          (click)="completionToggled.emit()"
+        >
+          <terra-icon name="check_circle" />{{
+            task().completed ? 'Reopen task' : 'Mark Completed'
+          }}
+        </button>
+      }
     </div>
   </section>`,
   styles: `
@@ -132,6 +139,7 @@ import { TerraButton } from '../button';
 export class TerraTaskInspectorCard {
   readonly task = input.required<TerraTaskDetails>();
   readonly heading = input('Task Details');
+  readonly canEdit = input(true);
   readonly linkRequested = output<void>();
   readonly editRequested = output<void>();
   readonly completionToggled = output<void>();

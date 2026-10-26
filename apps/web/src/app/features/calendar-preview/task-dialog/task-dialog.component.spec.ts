@@ -35,6 +35,53 @@ describe('TaskDialogComponent', () => {
     expect(modal.close).toHaveBeenCalledOnce();
   });
 
+  it('requires a valid recipient only for shared tasks and normalizes email', async () => {
+    const { fixture, element } = await render();
+    const created = vi.fn();
+    fixture.componentInstance.taskCreated.subscribe(created);
+    expect(element.querySelector<HTMLInputElement>('[value="PRIVATE"]')!.checked).toBe(true);
+    element.querySelector<HTMLInputElement>('[name="title"]')!.value = 'Shared task';
+    const recipient = element.querySelector<HTMLInputElement>('[name="sharedWith"]')!;
+    const submit = () =>
+      element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    const recipientField = recipient.closest<HTMLElement>('.recipient-field')!;
+    const visibilityFieldset = element.querySelector('fieldset fieldset')!;
+    expect(recipientField.hidden).toBe(true);
+    expect(visibilityFieldset.nextElementSibling).toBe(recipientField);
+    expect(recipient.disabled).toBe(true);
+    element.querySelector<HTMLInputElement>('[value="SHARED"]')!.click();
+    await fixture.whenStable();
+    expect(recipientField.hidden).toBe(false);
+    expect(recipient.required).toBe(true);
+    expect(recipient.type).toBe('email');
+    expect(recipient.maxLength).toBe(254);
+    submit();
+    expect(created).not.toHaveBeenCalled();
+    recipient.value = 'not-an-email';
+    submit();
+    expect(created).not.toHaveBeenCalled();
+    recipient.value = ' Recipient@Example.COM ';
+    submit();
+    expect(created).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        visibility: 'SHARED',
+        sharedWith: 'recipient@example.com',
+      }),
+    );
+    element.querySelector<HTMLInputElement>('[value="PRIVATE"]')!.click();
+    await fixture.whenStable();
+    expect(recipientField.hidden).toBe(true);
+    expect(recipient.value).toBe('');
+    expect(recipient.required).toBe(false);
+    submit();
+    expect(created).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        visibility: 'PRIVATE',
+        sharedWith: null,
+      }),
+    );
+  });
+
   it('rejects blank titles and schedules that cross midnight', async () => {
     const { fixture, element } = await render();
     const created = vi.fn();
@@ -96,15 +143,25 @@ describe('TaskDialogComponent', () => {
       duration: 0.75,
       shared: true,
       notes: 'Actual notes',
-      sharedWith: 'Team',
+      sharedWith: 'recipient@example.com',
     });
     await fixture.whenStable();
     expect(element.querySelector<HTMLInputElement>('[name="time"]')!.value).toBe('09:15');
     expect(element.querySelector<HTMLInputElement>('[name="duration"]')!.value).toBe('45');
+    expect(element.querySelector<HTMLInputElement>('[value="SHARED"]')!.checked).toBe(true);
+    expect(element.querySelector<HTMLInputElement>('[name="sharedWith"]')!.required).toBe(true);
+    expect(element.querySelector<HTMLElement>('.recipient-field')!.hidden).toBe(false);
+    expect(element.querySelector<HTMLInputElement>('[name="sharedWith"]')!.value).toBe(
+      'recipient@example.com',
+    );
     expect(element.querySelector<HTMLTextAreaElement>('[name="notes"]')!.value).toBe(
       'Actual notes',
     );
     fixture.componentInstance.open('2026-10-17');
+    await fixture.whenStable();
     expect(element.querySelector<HTMLInputElement>('[name="title"]')!.value).toBe('');
+    expect(element.querySelector<HTMLInputElement>('[value="PRIVATE"]')!.checked).toBe(true);
+    expect(element.querySelector<HTMLInputElement>('[name="sharedWith"]')!.disabled).toBe(true);
+    expect(element.querySelector<HTMLElement>('.recipient-field')!.hidden).toBe(true);
   });
 });

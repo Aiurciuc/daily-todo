@@ -1,17 +1,25 @@
 <terra-task-inspector-card
   [task]="details()"
-  (completionToggled)="completionToggled.emit()"
+  [canEdit]="task().canEdit !== false"
+  (completionToggled)="task().canEdit !== false && completionToggled.emit()"
   (linkRequested)="linkRequested.emit()"
-  (editRequested)="editRequested.emit()"
+  (editRequested)="task().canEdit !== false && editRequested.emit()"
 >
-  <button
-    inspectorAction
-    terraButton
-    variant="outlined"
-    aria-label="Delete task"
-    [disabled]="saving()"
-    (click)="deleteRequested.emit()"
-  >
-    <terra-icon name="delete" /> Delete task
-  </button>
+  @if (task().canEdit !== false) {
+    <button
+      inspectorAction
+      terraButton
+      variant="outlined"
+      aria-label="Delete task"
+      [disabled]="saving()"
+      (click)="deleteRequested.emit()"
+    >
+      <terra-icon name="delete" /> Delete task
+    </button>
+  }
 </terra-task-inspector-card>
+@if (task().canEdit === false) {
+  <p>Shared with you · Read-only. Only the owner can change this task.</p>
+} @else if (task().shared && task().sharedWith) {
+  <p>Shared with {{ task().sharedWith }} · Recipient has read-only access.</p>
+}

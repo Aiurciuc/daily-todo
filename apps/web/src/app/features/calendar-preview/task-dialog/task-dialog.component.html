@@ -14,7 +14,8 @@
       </button>
     </div>
     <p class="dialog-description">
-      Tasks are saved to your calendar. Shared/private are labels, not access permissions.
+      Share with someone who already has an account. They will see the task in their calendar as
+      read-only.
     </p>
     <fieldset [disabled]="saving()">
       <label for="task-title">Task name</label>
@@ -84,23 +85,46 @@
       </div>
       <label for="task-notes">Notes</label
       ><textarea terraField id="task-notes" name="notes" maxlength="10000" rows="3"></textarea>
-      <label for="task-shared-with">Team label (optional)</label
-      ><input terraField id="task-shared-with" name="sharedWith" maxlength="120" />
       <fieldset>
         <legend>Task Visibility</legend>
         <div class="form-grid">
           <label terraRadioCard
-            ><input terraCheckbox type="radio" name="visibility" value="SHARED" /><span
-              ><strong>Shared</strong><small>Shared calendar label.</small></span
+            ><input
+              terraCheckbox
+              type="radio"
+              name="visibility"
+              value="SHARED"
+              [checked]="shared()"
+              (change)="setShared(true)"
+            /><span
+              ><strong>Shared</strong><small>Recipient can view, not edit.</small></span
             ></label
           >
           <label terraRadioCard
-            ><input terraCheckbox type="radio" name="visibility" value="PRIVATE" checked /><span
-              ><strong>Private</strong><small>Personal calendar label.</small></span
-            ></label
+            ><input
+              terraCheckbox
+              type="radio"
+              name="visibility"
+              value="PRIVATE"
+              checked
+              [checked]="!shared()"
+              (change)="setShared(false)"
+            /><span><strong>Private</strong><small>Only you can see this task.</small></span></label
           >
         </div>
       </fieldset>
+      <div class="recipient-field" [hidden]="!shared()">
+        <label for="task-shared-with">Recipient email</label>
+        <input
+          terraField
+          id="task-shared-with"
+          name="sharedWith"
+          type="email"
+          maxlength="254"
+          [required]="shared()"
+          [disabled]="!shared()"
+        />
+      </div>
     </fieldset>
     @if (error()) {
       <p class="terra-field-error" role="alert">{{ error() }}</p>

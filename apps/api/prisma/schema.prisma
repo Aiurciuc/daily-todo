@@ -15,7 +15,9 @@ enum TaskVisibility {
 model Task {
   id              Int            @id @default(autoincrement())
   ownerId         Int?           @map("owner_id")
-  owner           User?          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  owner           User?          @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  recipientId     Int?           @map("recipient_id")
+  recipient       User?          @relation("TaskRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
   title           String         @db.VarChar(200)
   date            DateTime       @map("task_date") @db.Date
   completed       Boolean        @default(false)
@@ -25,21 +27,23 @@ model Task {
   durationMinutes Int?           @map("duration_minutes")
   visibility      TaskVisibility @default(PRIVATE)
   notes           String?        @db.VarChar(10000)
-  sharedWith      String?        @map("shared_with") @db.VarChar(120)
+  sharedWith      String?        @map("shared_with") @db.VarChar(254)
 
   @@index([ownerId, date])
+  @@index([recipientId, date])
   @@index([date])
   @@index([date, visibility, startMinute])
   @@map("tasks")
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  name         String    @db.VarChar(120)
-  email        String    @unique @db.VarChar(254)
-  passwordHash String    @map("password_hash")
-  tasks        Task[]
-  sessions     Session[]
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(120)
+  email         String    @unique @db.VarChar(254)
+  passwordHash  String    @map("password_hash")
+  tasks         Task[]    @relation("TaskOwner")
+  receivedTasks Task[]    @relation("TaskRecipient")
+  sessions      Session[]
 
   @@map("users")
 }

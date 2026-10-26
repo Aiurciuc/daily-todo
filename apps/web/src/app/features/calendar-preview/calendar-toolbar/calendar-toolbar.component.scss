@@ -19,6 +19,13 @@
   gap: 12px;
   flex-wrap: wrap;
 }
+.navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  gap: 4px;
+}
 .navigation button {
   height: 28px;
 }

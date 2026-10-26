@@ -80,6 +80,7 @@ export const DailyTasksStore = signalStore(
       );
     }),
   })),
+
   withMethods((store) => ({
     _mutate: rxMethod<Mutation>(
       pipe(
@@ -93,14 +94,20 @@ export const DailyTasksStore = signalStore(
                 ? store._taskService.setCompleted(intent.id, intent.completed)
                 : store._taskService.reorder(
                     day,
-                    ordered(base, intent.ids).map((task) => task.id),
+                    ordered(base, intent.ids)
+                      .filter((task) => task.canEdit !== false)
+                      .map((task) => task.id),
                   );
           const finish = (saved?: Task | Task[]) => {
             const writes = store._writes()[day];
             let base = writes.base;
             if (saved) {
-              if (Array.isArray(saved)) base = saved;
-              else if (intent.kind === 'add') base = [...base, saved];
+              if (Array.isArray(saved)) {
+                const received = base.filter(
+                  (task) => task.canEdit === false && !saved.some((item) => item.id === task.id),
+                );
+                base = [...saved, ...received];
+              } else if (intent.kind === 'add') base = [...base, saved];
               else base = base.map((task) => (task.id === saved.id ? saved : task));
             }
             const operation =
@@ -154,6 +161,7 @@ export const DailyTasksStore = signalStore(
       ),
     ),
   })),
+
   withMethods((store) => ({
     _enqueue(intent: Intent): void {
       const day = store.day();
@@ -227,18 +235,22 @@ export const DailyTasksStore = signalStore(
         sourceIndex < 0 ||
         currentIndex < 0 ||
         sourceIndex >= tasks.length ||
-        currentIndex >= tasks.length
+        currentIndex >= tasks.length ||
+        tasks[sourceIndex].canEdit === false
       )
         return;
       const reordered = [...tasks];
       const [task] = reordered.splice(sourceIndex, 1);
       reordered.splice(currentIndex, 0, task);
-      store._enqueue({ kind: 'reorder', ids: reordered.map((item) => item.id) });
+      store._enqueue({
+        kind: 'reorder',
+        ids: reordered.filter((item) => item.canEdit !== false).map((item) => item.id),
+      });
     },
     setCompleted(task: Task): void {
       if (!store.canAdd()) return;
       const current = store.tasks().find((item) => item.id === task.id);
-      if (current)
+      if (current && current.canEdit !== false)
         store._enqueue({ kind: 'completion', id: current.id, completed: !current.completed });
     },
   })),

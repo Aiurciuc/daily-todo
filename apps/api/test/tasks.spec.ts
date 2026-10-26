@@ -10,6 +10,7 @@ import { taskDetails } from './fixtures/task.fixture';
 const ownerId = 7;
 const task = {
   ownerId,
+  recipientId: null,
   id: 1,
   title: 'First',
   date: new Date('0001-01-01T00:00:00.000Z'),
@@ -20,6 +21,7 @@ const task = {
 
 function databaseMock() {
   const client = {
+    user: { findUnique: vi.fn().mockResolvedValue({ id: 8 }) },
     task: {
       findMany: vi.fn().mockResolvedValue([task]),
       aggregate: vi.fn().mockResolvedValue({ _max: { position: null } }),
@@ -62,17 +64,17 @@ describe('TasksRepository', () => {
     const repository = new TasksRepository(database as unknown as DatabaseService);
     expect(await repository.findByDay(ownerId, task.date)).toEqual([task]);
     expect(database.task.findMany).toHaveBeenCalledWith({
-      where: { ownerId, date: task.date },
+      where: { OR: [{ ownerId }, { visibility: 'SHARED', recipientId: ownerId }], date: task.date },
       orderBy: [{ position: 'asc' }, { id: 'asc' }],
     });
     await repository.create(ownerId, task.title, task.date);
     expect(database.task.create).toHaveBeenLastCalledWith({
-      data: { title: task.title, date: task.date, position: 0, ownerId },
+      data: { title: task.title, date: task.date, position: 0, ownerId, sharedWith: null, recipientId: null },
     });
     database.task.aggregate.mockResolvedValue({ _max: { position: 4 } });
     await repository.create(ownerId, task.title, task.date);
     expect(database.task.create).toHaveBeenLastCalledWith({
-      data: { title: task.title, date: task.date, position: 5, ownerId },
+      data: { title: task.title, date: task.date, position: 5, ownerId, sharedWith: null, recipientId: null },
     });
     expect(database.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
@@ -89,7 +91,7 @@ describe('TasksRepository', () => {
     const to = parseDay('0001-01-08');
     await repository.findByRange(ownerId, task.date, to, { completed: false });
     expect(database.task.findMany).toHaveBeenCalledWith({
-      where: { ownerId, date: { gte: task.date, lt: to }, completed: false },
+      where: { OR: [{ ownerId }, { visibility: 'SHARED', recipientId: ownerId }], date: { gte: task.date, lt: to }, completed: false },
       orderBy: [{ date: 'asc' }, { startMinute: 'asc' }, { position: 'asc' }, { id: 'asc' }],
     });
     const details = {
@@ -104,6 +106,7 @@ describe('TasksRepository', () => {
         date: task.date,
         position: 0,
         ...details,
+        recipientId: null,
         ownerId,
       },
     });
@@ -148,10 +151,82 @@ describe('TasksRepository', () => {
     });
     expect(database.task.update).toHaveBeenCalledWith({
       where: { id: task.id, ownerId },
-      data: { title: 'Edited', date, position: 0, ...taskDetails },
+      data: { title: 'Edited', date, position: 0, ...taskDetails, recipientId: null },
     });
     expect(await repository.remove(ownerId, task.id)).toEqual(task);
     expect(database.task.delete).toHaveBeenCalledWith({ where: { id: task.id, ownerId } });
+  });
+
+  it('resolves normalized emails inside create/update transactions and ignores injected grants', async () => {
+    const database = databaseMock();
+    const repository = new TasksRepository(database as unknown as DatabaseService);
+    const details = {
+      ...taskDetails, visibility: 'SHARED' as const, sharedWith: '  BOB@Example.COM  ',
+      recipientId: 99, ownerId: 99,
+    };
+    await repository.create(ownerId, task.title, task.date, details);
+    expect(database.user.findUnique).toHaveBeenCalledWith({ where: { email: 'bob@example.com' }, select: { id: true } });
+    expect(database.task.create).toHaveBeenCalledWith({ data: {
+      ...taskDetails, title: task.title, date: task.date, position: 0, ownerId,
+      visibility: 'SHARED', sharedWith: 'bob@example.com', recipientId: 8,
+    } });
+    database.user.findUnique.mockResolvedValue({ id: 9 });
+    await repository.update(ownerId, task.id, 'Updated', task.date, { ...details, sharedWith: ' CAROL@example.com ' });
+    expect(database.task.update).toHaveBeenCalledWith({ where: { id: task.id, ownerId }, data: {
+      ...taskDetails, title: 'Updated', date: task.date, position: 0,
+      visibility: 'SHARED', sharedWith: 'carol@example.com', recipientId: 9,
+    } });
+    expect(database.$transaction).toHaveBeenCalledTimes(2);
+    expect(database.$transaction).toHaveBeenLastCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
+  });
+
+  it('rejects invalid, missing, unregistered and self recipients before any write', async () => {
+    const database = databaseMock();
+    const repository = new TasksRepository(database as unknown as DatabaseService);
+    const invalidEmails = [null, '', ' ', 'Design Team', 'bob@', `${'x'.repeat(243)}@example.com`];
+    for (const sharedWith of invalidEmails) {
+      const details = { ...taskDetails, visibility: 'SHARED' as const, sharedWith };
+      await expect(repository.create(ownerId, task.title, task.date, details)).rejects.toThrow(BadRequestException);
+      await expect(repository.update(ownerId, task.id, task.title, task.date, details)).rejects.toThrow(BadRequestException);
+    }
+    expect(database.user.findUnique).not.toHaveBeenCalled();
+    const details = { ...taskDetails, visibility: 'SHARED' as const, sharedWith: 'bob@example.com' };
+    database.user.findUnique.mockResolvedValue(null as unknown as { id: number });
+    await expect(repository.create(ownerId, task.title, task.date, details)).rejects.toThrow('registered user');
+    await expect(repository.update(ownerId, task.id, task.title, task.date, details)).rejects.toThrow('registered user');
+    database.user.findUnique.mockResolvedValue({ id: ownerId });
+    await expect(repository.create(ownerId, task.title, task.date, details)).rejects.toThrow('yourself');
+    await expect(repository.update(ownerId, task.id, task.title, task.date, details)).rejects.toThrow('yourself');
+    expect(database.task.create).not.toHaveBeenCalled();
+    expect(database.task.update).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid 254-character email after trimming and lowercasing', async () => {
+    const database = databaseMock();
+    const repository = new TasksRepository(database as unknown as DatabaseService);
+    const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(57)}.com`;
+    expect(email).toHaveLength(254);
+    await repository.create(ownerId, task.title, task.date, {
+      ...taskDetails, visibility: 'SHARED', sharedWith: `  ${email.toUpperCase()}  `,
+    });
+    expect(database.task.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ sharedWith: email, recipientId: 8 }),
+    });
+  });
+
+  it('clears email and recipient on PRIVATE writes, even with injected grant fields', async () => {
+    const database = databaseMock();
+    const repository = new TasksRepository(database as unknown as DatabaseService);
+    const details = { ...taskDetails, sharedWith: 'bob@example.com', recipientId: 8 };
+    await repository.create(ownerId, task.title, task.date, details);
+    await repository.update(ownerId, task.id, task.title, task.date, details);
+    expect(database.task.create).toHaveBeenCalledWith({ data: {
+      ...taskDetails, title: task.title, date: task.date, position: 0, ownerId, recipientId: null,
+    } });
+    expect(database.task.update).toHaveBeenCalledWith({ where: { id: task.id, ownerId }, data: {
+      ...taskDetails, title: task.title, date: task.date, position: 0, recipientId: null,
+    } });
+    expect(database.user.findUnique).not.toHaveBeenCalled();
   });
 
   it('persists explicit completion and propagates failures to the exception filter', async () => {
@@ -169,6 +244,24 @@ describe('TasksRepository', () => {
 });
 
 describe('TasksService', () => {
+  it('computes read-only DTOs from the actor, without leaking ownership or grant IDs', async () => {
+    const shared = { ...task, recipientId: 8, visibility: 'SHARED', sharedWith: 'bob@example.com' };
+    const repository = {
+      findByDay: vi.fn().mockResolvedValue([shared]),
+      findByRange: vi.fn().mockResolvedValue([shared]),
+    };
+    const service = new TasksService(repository as unknown as TasksRepository);
+    for (const rows of [
+      await service.list(8, task.date),
+      await service.listCalendar(8, { from: '0001-01-01', to: '0001-01-08' }),
+    ]) {
+      expect(rows[0]).toMatchObject({ id: task.id, canEdit: false });
+      expect(rows[0]).not.toHaveProperty('ownerId');
+      expect(rows[0]).not.toHaveProperty('recipientId');
+    }
+    expect((await service.list(ownerId, task.date))[0].canEdit).toBe(true);
+  });
+
   it('resolves repository injection and maps database models to public response DTOs', async () => {
     const repository = {
       findByDay: vi.fn().mockResolvedValue([task]),
@@ -189,6 +282,7 @@ describe('TasksService', () => {
         title: 'First',
         date: '0001-01-01',
         completed: false,
+        canEdit: true,
         ...taskDetails,
       };
       expect(await service.list(ownerId, task.date)).toEqual([expected]);

@@ -17,12 +17,16 @@
       "
     >
       @for (task of tasks(); track task.id; let index = $index) {
-        <li cdkDrag [cdkDragData]="task.id" [cdkDragDisabled]="!canInteract()">
+        <li
+          cdkDrag
+          [cdkDragData]="task.id"
+          [cdkDragDisabled]="!canInteract() || task.canEdit === false"
+        >
           <button
             type="button"
             class="drag-handle"
             cdkDragHandle
-            [disabled]="!canInteract()"
+            [disabled]="!canInteract() || task.canEdit === false"
             [attr.aria-label]="'Reorder ' + task.title"
             title="Drag to reorder, or use Up/Down arrow keys"
             (keydown.arrowup)="
@@ -48,10 +52,13 @@
             <input
               type="checkbox"
               [checked]="task.completed"
-              [disabled]="!canInteract()"
+              [disabled]="!canInteract() || task.canEdit === false"
               (change)="toggleCompletion(task, $event)"
             />
             <span>{{ task.title }}</span>
+            @if (task.canEdit === false) {
+              <span>Shared with you · Read-only</span>
+            }
           </label>
         </li>
       }
