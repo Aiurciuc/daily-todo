@@ -5,7 +5,7 @@
   "scripts": {
     "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build --configuration production",
-    "lint": "eslint src",
+    "lint": "eslint src projects",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "ng test --watch=false"
   },

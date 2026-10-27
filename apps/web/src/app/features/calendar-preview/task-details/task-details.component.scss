@@ -1,3 +1,14 @@
 :host {
   display: block;
 }
+
+.sharing-info {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--terra-shared, #d8e6db);
+  color: var(--terra-ink, #3a3429);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}

@@ -32,7 +32,6 @@ export interface PersistedCalendarTask extends NewCalendarTask {
   completed: boolean;
 }
 export type CalendarView = 'Day' | 'Week' | 'Month';
-export type TaskFilter = 'All' | 'Shared' | 'Private';
 export interface CalendarDay {
   date: Date;
   day: number;

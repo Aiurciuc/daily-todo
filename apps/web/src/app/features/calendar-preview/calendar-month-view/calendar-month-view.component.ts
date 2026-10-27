@@ -13,10 +13,10 @@ import { CALENDAR_WEEKDAYS } from '../calendar-preview.data';
 export class CalendarMonthViewComponent {
   readonly days = input.required<readonly CalendarDay[]>();
   readonly tasks = input.required<readonly CalendarTask[]>();
-  protected readonly dateKey = dateKey;
+  readonly dateKey = dateKey;
   readonly dateSelected = output<Date>();
-  protected readonly weekdays = CALENDAR_WEEKDAYS;
-  protected taskSummary(cell: CalendarDay): string {
+  readonly weekdays = CALENDAR_WEEKDAYS;
+  taskSummary(cell: CalendarDay): string {
     const titles = this.tasks()
       .filter((task) => task.date === dateKey(cell.date))
       .map((task) => task.title);

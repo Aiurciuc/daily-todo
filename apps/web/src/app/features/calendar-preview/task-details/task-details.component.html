@@ -5,6 +5,13 @@
   (linkRequested)="linkRequested.emit()"
   (editRequested)="task().canEdit !== false && editRequested.emit()"
 >
+  <div inspectorSharing>
+    @if (task().canEdit === false) {
+      <p class="sharing-info">Shared with you · Read-only. Only the owner can change this task.</p>
+    } @else if (task().shared && task().sharedWith) {
+      <p class="sharing-info">Shared with {{ task().sharedWith }} · Recipient has read-only access.</p>
+    }
+  </div>
   @if (task().canEdit !== false) {
     <button
       inspectorAction
@@ -18,8 +25,3 @@
     </button>
   }
 </terra-task-inspector-card>
-@if (task().canEdit === false) {
-  <p>Shared with you · Read-only. Only the owner can change this task.</p>
-} @else if (task().shared && task().sharedWith) {
-  <p>Shared with {{ task().sharedWith }} · Recipient has read-only access.</p>
-}

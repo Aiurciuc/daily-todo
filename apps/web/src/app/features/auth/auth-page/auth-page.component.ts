@@ -28,14 +28,14 @@ export class AuthPageComponent {
   private readonly auth = inject(Auth);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  protected readonly register = this.route.snapshot.data['register'] === true;
-  protected readonly returnUrl = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
-  protected readonly expired = this.route.snapshot.queryParamMap.get('expired') === '1';
-  protected readonly pending = signal(false);
-  protected readonly error = signal('');
-  protected readonly showPassword = signal(false);
-  protected readonly model = signal({ name: '', email: '', password: '', confirmation: '' });
-  protected readonly fields = form(this.model, (s) => {
+  readonly register = this.route.snapshot.data['register'] === true;
+  readonly returnUrl = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
+  readonly expired = this.route.snapshot.queryParamMap.get('expired') === '1';
+  readonly pending = signal(false);
+  readonly error = signal('');
+  readonly showPassword = signal(false);
+  readonly model = signal({ name: '', email: '', password: '', confirmation: '' });
+  readonly fields = form(this.model, (s) => {
     disabled(s, () => this.pending());
     required(s.email, { message: 'Enter your email address.' });
     email(s.email, { message: 'Enter a valid email address.' });
@@ -68,7 +68,7 @@ export class AuthPageComponent {
     });
   }
 
-  protected onSubmit(event: Event): void {
+  onSubmit(event: Event): void {
     event.preventDefault();
     if (this.pending()) return;
     this.error.set('');

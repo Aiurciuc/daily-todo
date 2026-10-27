@@ -11,7 +11,7 @@ import { CalendarPreviewComponent } from '../../calendar-preview/calendar-previe
 })
 export class PrivateCalendarComponent {
   private readonly auth = inject(Auth);
-  protected readonly users = computed(() => {
+  readonly users = computed(() => {
     const user = this.auth.user();
     return user ? [user] : [];
   });

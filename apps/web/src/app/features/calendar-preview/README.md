@@ -4,7 +4,7 @@ API-backed day/week/month calendar. No mock fixtures or in-memory persistence.
 
 ## Boundaries
 
-- `calendar-preview.component.*`: navigation/range selection, filters, selected task, clock, clipboard, dialog and confirmation interactions. Projects persisted tasks into calendar layout; delegates all data loading and writes to the store.
+- `calendar-preview.component.*`: navigation/range selection, selected task, clock, clipboard, dialog and confirmation interactions. Projects persisted tasks into calendar layout; delegates all data loading and writes to the store.
 - `calendar-api.service.ts`: typed GET, POST, PUT, PATCH completion and DELETE requests only. An undefined range skips loading until the page supplies its initial range.
 - `state/calendar.store.ts`: small NgRx SignalStore composition root. **Provided by the calendar component, not globally.** Unmounting on logout, expiry or account change destroys cached state and cancels pending requests and callbacks.
 - `state/with-calendar-data.ts`: reactive range binding, loading/load errors, persisted tasks, retry and cache reconciliation. Resource/cache internals are private; consumers receive read-only signals and commands.
@@ -17,7 +17,8 @@ API-backed day/week/month calendar. No mock fixtures or in-memory persistence.
 
 Children receive signal inputs and emit typed outputs. Reusable visual controls come from `terra-ui`:
 
-- `calendar-header/`, `calendar-toolbar/`, `mini-calendar/`: navigation and filters.
+- `calendar-header/`: date navigation, view selection, creation and account controls (responsive on all screen sizes).
+- `mini-calendar/`: date selection and month navigation.
 - `calendar-time-grid/`: 24-hour timeline, overlap lanes, sticky unscheduled strip and drag/slot selection.
 - `calendar-month-view/`: tasks grouped by date, including unscheduled tasks.
 - `task-details/`: persisted notes, schedule, sharing and guarded task actions.
@@ -26,7 +27,7 @@ Children receive signal inputs and emit typed outputs. Reusable visual controls 
 
 ## Data flow and invariants
 
-1. The page supplies a range signal via `store.setRange(query)`. Filtering and selection are local UI state, not extra requests.
+1. The page supplies a range signal via `store.setRange(query)`. Day-view narrowing and task selection are local UI state, not extra requests. Shared and private tasks are always displayed together.
 2. Create/edit/completion/delete reload only after success. Errors preserve the draft/data and show actionable feedback.
 3. Moves patch only the affected cached task immediately. Neither success nor failure refetches the calendar; DOM and scroll position remain intact. Failure restores scheduling only and shows a red notice.
 4. Corrections survive a GET that began before a move settled. The next fresh range read/reload supersedes them. Responses never insert an absent task into a different range or overwrite fresh metadata during rollback.

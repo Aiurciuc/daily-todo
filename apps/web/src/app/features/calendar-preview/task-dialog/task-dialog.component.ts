@@ -30,12 +30,12 @@ export class TaskDialogComponent {
   readonly error = input('');
   private readonly dialog = viewChild.required(TerraModal);
   private readonly form = viewChild.required<ElementRef<HTMLFormElement>>('taskForm');
-  protected readonly titleError = signal('');
-  protected readonly editing = signal(false);
-  protected readonly unscheduled = signal(false);
-  protected readonly shared = signal(false);
+  readonly titleError = signal('');
+  readonly editing = signal(false);
+  readonly unscheduled = signal(false);
+  readonly shared = signal(false);
 
-  protected setShared(shared: boolean): void {
+  setShared(shared: boolean): void {
     this.shared.set(shared);
     if (!shared) this.setValue('sharedWith', '');
   }
@@ -74,7 +74,7 @@ export class TaskDialogComponent {
     (this.form().nativeElement.elements.namedItem(name) as HTMLInputElement).value = value;
   }
 
-  protected saveTask(event: Event): void {
+  saveTask(event: Event): void {
     event.preventDefault();
     if (this.saving()) return;
     const form = this.form().nativeElement;

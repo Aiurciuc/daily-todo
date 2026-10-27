@@ -14,12 +14,12 @@ import { Router } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CalendarHeaderComponent {
-  protected readonly auth = inject(Auth);
+  readonly auth = inject(Auth);
   private readonly router = inject(Router);
-  protected readonly loggingOut = signal(false);
-  protected readonly logoutError = signal('');
+  readonly loggingOut = signal(false);
+  readonly logoutError = signal('');
 
-  protected async logout(): Promise<void> {
+  async logout(): Promise<void> {
     if (this.loggingOut()) return;
     this.loggingOut.set(true);
     this.logoutError.set('');
@@ -33,8 +33,8 @@ export class CalendarHeaderComponent {
     }
   }
 
-  protected readonly today = new Date();
-  protected readonly viewOptions: readonly TerraSegment<CalendarView>[] = CALENDAR_VIEWS.map(
+  readonly today = new Date();
+  readonly viewOptions: readonly TerraSegment<CalendarView>[] = CALENDAR_VIEWS.map(
     (value) => ({ value, label: value }),
   );
   readonly view = input.required<CalendarView>();

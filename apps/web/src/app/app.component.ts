@@ -12,14 +12,14 @@ import { safeReturnUrl } from './features/auth/auth-routing';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
-  protected readonly auth = inject(Auth);
+  readonly auth = inject(Auth);
   private readonly router = inject(Router);
 
   constructor() {
     void this.auth.restore();
   }
 
-  protected async retrySession(): Promise<void> {
+  async retrySession(): Promise<void> {
     await this.auth.restore(true);
     const url = this.router.parseUrl(this.router.url);
     const path = this.router.url.split(/[?#]/)[0];

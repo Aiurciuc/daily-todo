@@ -29,6 +29,15 @@ export default tseslint.config(
       ...angular.configs.tsRecommended,
     ],
     processor: angular.processInlineTemplates,
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "[accessibility='protected']",
+          message: 'Do not use protected members. Use default public visibility for template-facing members or private for implementation details.',
+        },
+      ],
+    },
   },
   {
     files: ['apps/web/**/*.html'],

@@ -69,18 +69,6 @@ test('persists calendar creation, edits, completion, date moves and deletion', a
     await dialog.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(details.getByRole('heading', { name: updatedTitle })).toBeVisible();
     await expect(page.locator('.unscheduled-tasks')).toContainText(updatedTitle);
-    await page
-      .locator('.filters')
-      .getByRole('button', { name: /Shared/ })
-      .click();
-    await expect(page.locator('.unscheduled-tasks').filter({ hasText: updatedTitle })).toHaveCount(
-      0,
-    );
-    await page
-      .locator('.filters')
-      .getByRole('button', { name: /Private/ })
-      .click();
-    await expect(page.locator('.unscheduled-tasks')).toContainText(updatedTitle);
 
     await details.getByRole('button', { name: 'Edit task', exact: true }).click();
     // Moving dates uses a full replacement; completion and metadata survive.

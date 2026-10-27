@@ -5,6 +5,34 @@ import { Auth } from '../../auth/auth';
 import { CalendarHeaderComponent } from './calendar-header.component';
 
 describe('CalendarHeaderComponent', () => {
+  it('shows only calendar views and emits navigation and creation', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: Auth, useValue: { user: signal(null) } }],
+    });
+    const fixture = TestBed.createComponent(CalendarHeaderComponent);
+    fixture.componentRef.setInput('view', 'Week');
+    fixture.componentRef.setInput('rangeStart', new Date(2026, 9, 19));
+    fixture.componentRef.setInput('rangeEnd', new Date(2026, 9, 25));
+    fixture.componentRef.setInput('offset', 0);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('terra-segmented-filter')).toHaveLength(1);
+    expect(element.querySelector('[aria-label="Task visibility"]')).toBeNull();
+    const moved = vi.fn();
+    const today = vi.fn();
+    const created = vi.fn();
+    fixture.componentInstance.periodMoved.subscribe(moved);
+    fixture.componentInstance.todayRequested.subscribe(today);
+    fixture.componentInstance.createRequested.subscribe(created);
+    element.querySelector<HTMLButtonElement>('[aria-label="Previous week"]')!.click();
+    element.querySelector<HTMLButtonElement>('[aria-label="Next week"]')!.click();
+    expect(moved.mock.calls).toEqual([[-1], [1]]);
+    element.querySelector<HTMLButtonElement>('.today-label')!.click();
+    expect(today).toHaveBeenCalledTimes(1);
+    element.querySelector<HTMLButtonElement>('.topbar-right button')!.click();
+    expect(created).toHaveBeenCalledTimes(1);
+  });
+
   it('offers Day, Week and Month and emits Month selection', async () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([]), { provide: Auth, useValue: { user: signal(null) } }],

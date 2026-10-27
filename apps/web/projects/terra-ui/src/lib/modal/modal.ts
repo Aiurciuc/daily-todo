@@ -51,7 +51,7 @@ export class TerraModal {
   close(): void {
     this.dialog().nativeElement.close();
   }
-  protected backdrop(event: MouseEvent): void {
+  backdrop(event: MouseEvent): void {
     const el = this.dialog().nativeElement;
     if (event.target !== el) return;
     const r = el.getBoundingClientRect();

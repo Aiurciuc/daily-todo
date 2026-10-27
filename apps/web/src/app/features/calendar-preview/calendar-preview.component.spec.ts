@@ -45,20 +45,40 @@ describe('API-backed calendar', () => {
 
   afterEach(() => TestBed.inject(HttpTestingController).verify());
 
-  it('renders only server data, accurate minutes and real notes, and filters', async () => {
+  it('renders only server data, accurate minutes and real notes', async () => {
     const { fixture, element } = await render();
+    expect(element.querySelector('app-calendar-toolbar')).toBeNull();
     expect(element.querySelectorAll('.calendar-task')).toHaveLength(1);
     expect(element.querySelector('.calendar-task')?.textContent).toContain('09:37');
     element.querySelector<HTMLButtonElement>('.calendar-task')!.click();
     await fixture.whenStable();
     expect(element.querySelector('.details .notes')?.textContent).toBe('Actual stored notes');
-    expect(element.querySelector('app-task-details')?.textContent).toContain(
-      'Shared with recipient@example.com',
+    expect(element.querySelector('.details .sharing-info')?.textContent).toContain(
+      'Shared with recipient@example.com · Recipient has read-only access.',
     );
-    element.querySelectorAll<HTMLButtonElement>('.filters button')[2].click();
+    expect(element.querySelector('app-task-details > p')).toBeNull();
+    expect(element.textContent).not.toContain('No tasks for this period');
+    expect(element.querySelector('app-calendar-time-grid')).not.toBeNull();
+  });
+
+  it('shows shared and private tasks together and narrows only by the active day', async () => {
+    const { fixture, element } = await render([
+      { ...task, title: 'Shared work', canEdit: false },
+      { ...task, id: 43, title: 'Private work', visibility: 'PRIVATE', sharedWith: null },
+      { ...task, id: 44, title: 'Another day', date: dateKey(calendarDayDate(0, 1)) },
+    ]);
+    expect(element.querySelectorAll('.calendar-task')).toHaveLength(3);
+    fixture.componentInstance.activeDay.set(0);
+    fixture.componentInstance.view.set('Day');
     await fixture.whenStable();
-    expect(element.querySelectorAll('.calendar-task')).toHaveLength(0);
-    expect(element.textContent).toContain('No tasks for this period');
+    const tasks = element.querySelectorAll('.calendar-task');
+    expect(tasks).toHaveLength(2);
+    expect(Array.from(tasks, (item) => item.textContent).join(' ')).toContain('Shared work');
+    expect(Array.from(tasks, (item) => item.textContent).join(' ')).toContain('Private work');
+    fixture.componentInstance.activeDay.set(1);
+    await fixture.whenStable();
+    expect(element.querySelectorAll('.calendar-task')).toHaveLength(1);
+    expect(element.querySelector('.calendar-task')?.textContent).toContain('Another day');
   });
 
   it('displays received tasks read-only and guards parent mutation handlers', async () => {
@@ -66,7 +86,9 @@ describe('API-backed calendar', () => {
     element.querySelector<HTMLButtonElement>('.calendar-task')!.click();
     await fixture.whenStable();
     expect(element.querySelector('.details h3')?.textContent).toBe(task.title);
-    expect(element.textContent).toContain('Shared with you · Read-only');
+    expect(element.querySelector('.details .sharing-info')?.textContent).toContain(
+      'Shared with you · Read-only',
+    );
     expect(element.querySelector('[aria-label="Edit task"]')).toBeNull();
     expect(element.querySelector('[aria-label="Delete task"]')).toBeNull();
     expect(element.querySelector('.detail-actions .secondary')).toBeNull();
@@ -193,7 +215,7 @@ describe('API-backed calendar', () => {
       .componentInstance as CalendarTimeGridComponent;
     grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
     const update = http.expectOne('/api/tasks/42');
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Next week"]')!.click();
     await TestBed.tick();
     http.expectOne((request) => request.method === 'GET').flush([]);
     await fixture.whenStable();
@@ -210,11 +232,11 @@ describe('API-backed calendar', () => {
       .componentInstance as CalendarTimeGridComponent;
     grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
     const update = http.expectOne('/api/tasks/42');
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Next week"]')!.click();
     await TestBed.tick();
     http.expectOne((request) => request.method === 'GET').flush([]);
     await fixture.whenStable();
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Previous week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Previous week"]')!.click();
     await TestBed.tick();
     const returningRead = http.expectOne((request) => request.method === 'GET');
     update.flush({ ...task, date: dateKey(calendarDayDate(0, 1)), startMinute: 600 });
@@ -226,11 +248,11 @@ describe('API-backed calendar', () => {
     http.expectNone((request) => request.method === 'GET');
 
     // A later fresh read supersedes the correction (including subsequent external edits).
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Next week"]')!.click();
     await TestBed.tick();
     http.expectOne((request) => request.method === 'GET').flush([]);
     await fixture.whenStable();
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Previous week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Previous week"]')!.click();
     await TestBed.tick();
     http.expectOne((request) => request.method === 'GET').flush([task]);
     await fixture.whenStable();
@@ -243,11 +265,11 @@ describe('API-backed calendar', () => {
       .componentInstance as CalendarTimeGridComponent;
     grid.taskMoved.emit({ id: task.id, day: 1, startMinute: 600 });
     const update = http.expectOne('/api/tasks/42');
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Next week"]')!.click();
     await TestBed.tick();
     http.expectOne((request) => request.method === 'GET').flush([]);
     await fixture.whenStable();
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Previous week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Previous week"]')!.click();
     await TestBed.tick();
     http
       .expectOne((request) => request.method === 'GET')
@@ -311,6 +333,8 @@ describe('API-backed calendar', () => {
   it('handles an empty database and creates using server-generated ids', async () => {
     const { fixture, http, element, dialog } = await render([]);
     expect(element.textContent).toContain('Select a task');
+    expect(element.textContent).not.toContain('No tasks for this period');
+    expect(element.querySelector('app-calendar-time-grid')).not.toBeNull();
     const draft = {
       title: task.title,
       date: task.date,
@@ -394,6 +418,7 @@ describe('API-backed calendar', () => {
     http.expectOne((req) => req.method === 'GET').flush([{ ...task, ...draft }]);
     await fixture.whenStable();
     expect(element.querySelector('.details h3')?.textContent).toBe('Updated title');
+    expect(element.querySelector('.details .sharing-info')).toBeNull();
     expect(element.querySelector('.unscheduled-tasks')?.textContent).toContain('Updated title');
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const deleteButton = element.querySelector<HTMLButtonElement>(
@@ -429,7 +454,7 @@ describe('API-backed calendar', () => {
 
   it('loads new ranges rather than carrying events into other weeks, and retries failures', async () => {
     const { fixture, http, element } = await render();
-    element.querySelector<HTMLButtonElement>('.navigation [aria-label="Next week"]')!.click();
+    element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Next week"]')!.click();
     await TestBed.tick();
     const next = http.expectOne((req) => req.method === 'GET');
     expect(next.request.params.get('from')).toBe(dateKey(calendarDayDate(1, 0)));
@@ -447,7 +472,7 @@ describe('API-backed calendar', () => {
 
   it('loads a complete month and maps tasks to their actual dates', async () => {
     const { fixture, http, element } = await render();
-    element.querySelectorAll<HTMLButtonElement>('.tools .view-switcher button')[2].click();
+    element.querySelectorAll<HTMLButtonElement>('.top-views button')[2].click();
     await TestBed.tick();
     http.expectOne((req) => req.method === 'GET').flush([task]);
     await fixture.whenStable();

@@ -12,23 +12,7 @@
 />
 <main class="dashboard">
   <section class="workspace" aria-label="Calendar workspace" [attr.aria-busy]="store.loading()">
-    <app-calendar-toolbar
-      [view]="view()"
-      [filter]="filter()"
-      [sharedCount]="sharedCount()"
-      [privateCount]="privateCount()"
-      [rangeStart]="rangeStart()"
-      [rangeEnd]="rangeEnd()"
-      [month]="miniMonth()"
-      [offset]="offset()"
-      [activeDate]="activeDate()"
-      (viewChanged)="view.set($event)"
-      (filterChanged)="filter.set($event)"
-      (periodMoved)="movePeriod($event)"
-      (todayRequested)="resetToday()"
-      (createRequested)="openTask()"
-    />
-    @if (store.loading()) {
+    @if (true) {
       <p class="state-message" role="status">Loading tasks…</p>
     }
     @if (store.loadError()) {
@@ -37,11 +21,6 @@
         <button class="outline-button" (click)="store.reload()">Retry</button>
       </div>
     } @else {
-      @if (!store.loading() && visibleTasks().length === 0) {
-        <p class="state-message">
-          No tasks for this period and filter. Create a task to get started.
-        </p>
-      }
       @if (view() !== 'Month') {
         <app-calendar-time-grid
           [tasks]="visibleTasks()"

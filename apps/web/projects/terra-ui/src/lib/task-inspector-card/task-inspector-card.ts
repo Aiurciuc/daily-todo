@@ -39,6 +39,7 @@ import { TerraButton } from '../button';
     <p class="time">
       <terra-icon name="schedule" /> {{ task().timeLabel }} · {{ task().dateLabel }}
     </p>
+    <ng-content select="[inspectorSharing]" />
     <h4>Agenda & Notes</h4>
     <p class="notes">{{ task().notes || 'No notes added.' }}</p>
     <div class="detail-actions">

@@ -17,7 +17,7 @@ export class MiniCalendarComponent {
   readonly offset = input.required<number>();
   readonly monthMoved = output<number>();
   readonly dateSelected = output<Date>();
-  protected readonly cells = computed(() => {
+  readonly cells = computed(() => {
     const selected = calendarDayDate(this.offset(), this.activeDay());
     const start = calendarDayDate(this.offset(), 0);
     const end = calendarDayDate(this.offset(), 6);

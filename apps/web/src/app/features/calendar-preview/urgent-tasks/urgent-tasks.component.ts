@@ -14,5 +14,5 @@ import { formatCalendarTime } from '../calendar-preview.utils';
 export class UrgentTasksComponent {
   readonly tasks = input.required<readonly CalendarTask[]>();
   readonly taskSelected = output<CalendarTask>();
-  protected readonly time = formatCalendarTime;
+  readonly time = formatCalendarTime;
 }

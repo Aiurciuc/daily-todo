@@ -5,12 +5,13 @@
 }
 
 .topbar {
-  position: relative;
-  height: 56px;
-  padding: 0 24px;
+  min-height: 56px;
+  padding: 12px 24px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   background: #ffffffd9;
   border-bottom: 1px solid var(--line);
 }
@@ -21,7 +22,8 @@
   align-items: center;
 }
 .topbar-left {
-  gap: 24px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .topbar-right {
   gap: 12px;
@@ -43,32 +45,8 @@
     sans-serif;
   color: var(--muted);
 }
-kbd {
-  font:
-    10px 'JetBrains Mono',
-    monospace;
-  background: #0000001a;
-  padding: 2px 4px;
-  border-radius: 4px;
-  margin-left: 5px;
-  color: #ffffffbf;
-}
-.profile {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: #eae6de;
-  color: var(--green);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .top-views {
   background: #f0ece4;
-}
-.top-views button {
-  padding: 0 12px;
 }
 .identity {
   max-width: 120px;
@@ -84,11 +62,10 @@ kbd {
   background: #fff3f0;
 }
 .topbar-range {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   color: var(--terra-muted);
   font-size: 12px;
@@ -104,24 +81,19 @@ kbd {
 }
 @media (max-width: 1000px) {
   .topbar-range {
-    display: none;
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-start;
   }
 }
 @media (max-width: 520px) {
   .topbar {
-    height: auto;
-    min-height: 56px;
     padding: 12px;
-    flex-wrap: wrap;
     gap: 8px;
   }
   .topbar-left {
+    width: 100%;
     gap: 8px;
-  }
-  .top-views,
-  kbd,
-  .profile {
-    display: none;
   }
   .topbar-right {
     width: 100%;

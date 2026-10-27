@@ -126,7 +126,8 @@
 .day-column.weekend {
   background: #f5f1ea33;
 }
-.hour-slot {
+// Match the shared button reset's specificity so hour dividers span every day.
+button.hour-slot {
   height: 64px;
   width: 100%;
   display: block;

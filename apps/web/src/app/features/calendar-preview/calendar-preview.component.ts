@@ -9,7 +9,6 @@ import {
   DestroyRef,
 } from '@angular/core';
 import { CalendarHeaderComponent } from './calendar-header/calendar-header.component';
-import { CalendarToolbarComponent } from './calendar-toolbar/calendar-toolbar.component';
 import { CalendarTimeGridComponent } from './calendar-time-grid/calendar-time-grid.component';
 import { CalendarMonthViewComponent } from './calendar-month-view/calendar-month-view.component';
 import { MiniCalendarComponent } from './mini-calendar/mini-calendar.component';
@@ -21,7 +20,6 @@ import {
   CalendarTaskMove,
   CalendarView,
   NewCalendarTask,
-  TaskFilter,
 } from './calendar-preview.models';
 import {
   buildMonthDays,
@@ -39,7 +37,6 @@ import { toCalendarTask } from './state/calendar-task.helpers';
   providers: [CalendarStore],
   imports: [
     CalendarHeaderComponent,
-    CalendarToolbarComponent,
     CalendarTimeGridComponent,
     CalendarMonthViewComponent,
     MiniCalendarComponent,
@@ -52,28 +49,27 @@ import { toCalendarTask } from './state/calendar-task.helpers';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CalendarPreviewComponent {
-  protected readonly store = inject(CalendarStore);
+  readonly store = inject(CalendarStore);
   // Mutation feedback comes from the store; clipboard feedback remains UI-local.
-  protected readonly notice = linkedSignal(() =>
+  readonly notice = linkedSignal(() =>
     this.store.saving() ? null : this.store.notice(),
   );
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = viewChild.required(TaskDialogComponent);
-  protected readonly view = signal<CalendarView>('Week');
-  protected readonly filter = signal<TaskFilter>('All');
-  protected readonly offset = signal(0);
-  protected readonly activeDay = signal((new Date().getDay() + 6) % 7);
-  protected readonly monthOffset = signal(0);
-  protected readonly editingId = signal<number | null>(null);
-  protected readonly selectedId = signal<number | null>(null);
-  protected readonly rangeStart = computed(() => calendarDayDate(this.offset(), 0));
-  protected readonly rangeEnd = computed(() => calendarDayDate(this.offset(), 6));
-  protected readonly activeDate = computed(() => calendarDayDate(this.offset(), this.activeDay()));
-  protected readonly miniMonth = computed(() => {
+  readonly view = signal<CalendarView>('Week');
+  readonly offset = signal(0);
+  readonly activeDay = signal((new Date().getDay() + 6) % 7);
+  readonly monthOffset = signal(0);
+  readonly editingId = signal<number | null>(null);
+  readonly selectedId = signal<number | null>(null);
+  readonly rangeStart = computed(() => calendarDayDate(this.offset(), 0));
+  readonly rangeEnd = computed(() => calendarDayDate(this.offset(), 6));
+  readonly activeDate = computed(() => calendarDayDate(this.offset(), this.activeDay()));
+  readonly miniMonth = computed(() => {
     const now = new Date();
     return dateFromParts(now.getFullYear(), now.getMonth() + this.monthOffset(), 1);
   });
-  protected readonly monthDays = computed(() => buildMonthDays(this.miniMonth()));
+  readonly monthDays = computed(() => buildMonthDays(this.miniMonth()));
   private readonly query = computed(() => {
     const cells = this.monthDays();
     const start = this.view() === 'Month' ? cells[0].date : this.rangeStart();
@@ -83,30 +79,22 @@ export class CalendarPreviewComponent {
       to: dateKey(dateFromParts(end.getFullYear(), end.getMonth(), end.getDate() + 1)),
     };
   });
-  protected readonly tasks = computed<CalendarTask[]>(() =>
+  readonly tasks = computed<CalendarTask[]>(() =>
     this.store.tasks().map((task) => toCalendarTask(task, this.rangeStart())),
   );
-  protected readonly visibleTasks = computed(() =>
-    this.tasks().filter(
-      (task) =>
-        (this.filter() === 'All' || (this.filter() === 'Shared' ? task.shared : !task.shared)) &&
-        (this.view() !== 'Day' || task.day === this.activeDay()),
-    ),
+  readonly visibleTasks = computed(() =>
+    this.view() === 'Day'
+      ? this.tasks().filter((task) => task.day === this.activeDay())
+      : this.tasks(),
   );
-  protected readonly sharedCount = computed(
-    () => this.tasks().filter((task) => task.shared).length,
-  );
-  protected readonly privateCount = computed(
-    () => this.tasks().filter((task) => !task.shared).length,
-  );
-  protected readonly selected = computed(() =>
+  readonly selected = computed(() =>
     this.tasks().find((task) => task.id === this.selectedId()),
   );
-  protected readonly selectedDate = computed(() =>
+  readonly selectedDate = computed(() =>
     localDate(this.selected()?.date ?? dateKey(this.activeDate())),
   );
   private readonly clock = signal(Date.now());
-  protected readonly urgentTasks = computed(() => {
+  readonly urgentTasks = computed(() => {
     const now = this.clock();
     return this.tasks()
       .filter((task) => {
@@ -132,12 +120,12 @@ export class CalendarPreviewComponent {
     this.store.setRange(this.query);
   }
 
-  protected selectTask(task: CalendarTask): void {
+  selectTask(task: CalendarTask): void {
     this.selectedId.set(task.id);
     if (task.day >= 0 && task.day < 7) this.activeDay.set(task.day);
   }
 
-  protected movePeriod(direction: number): void {
+  movePeriod(direction: number): void {
     if (this.view() === 'Month') this.moveMonth(direction);
     else
       this.chooseDate(
@@ -148,7 +136,7 @@ export class CalendarPreviewComponent {
       );
   }
 
-  protected moveMonth(direction: number): void {
+  moveMonth(direction: number): void {
     const month = this.miniMonth();
     if (this.view() === 'Month') {
       const lastDay = dateFromParts(
@@ -166,11 +154,11 @@ export class CalendarPreviewComponent {
     } else this.monthOffset.update((value) => value + direction);
   }
 
-  protected resetToday(): void {
+  resetToday(): void {
     this.chooseDate(new Date());
   }
 
-  protected chooseDate(date: Date): void {
+  chooseDate(date: Date): void {
     const days = dayDifference(date, calendarDayDate(0, 0));
     this.offset.set(Math.floor(days / 7));
     this.activeDay.set(((days % 7) + 7) % 7);
@@ -180,7 +168,7 @@ export class CalendarPreviewComponent {
     );
   }
 
-  protected openTask(day = this.activeDay(), hour = 9): void {
+  openTask(day = this.activeDay(), hour = 9): void {
     if (this.store.saving()) return;
     this.editingId.set(null);
     this.store.clearMutationError();
@@ -188,7 +176,7 @@ export class CalendarPreviewComponent {
     this.dialog().open(dateKey(date), hour);
   }
 
-  protected editTask(): void {
+  editTask(): void {
     const task = this.selected();
     if (!task || task.canEdit === false || this.store.saving()) return;
     this.editingId.set(task.id);
@@ -196,7 +184,7 @@ export class CalendarPreviewComponent {
     this.dialog().edit(task);
   }
 
-  protected saveTask(draft: NewCalendarTask): void {
+  saveTask(draft: NewCalendarTask): void {
     const onSaved = (task: { id: number; date: string }) => {
       this.dialog().close(true);
       this.chooseDate(localDate(task.date));
@@ -207,7 +195,7 @@ export class CalendarPreviewComponent {
     else this.store.updateTask(id, draft, onSaved);
   }
 
-  protected moveTask(move: CalendarTaskMove): void {
+  moveTask(move: CalendarTaskMove): void {
     if (!Number.isInteger(move.day) || move.day < 0 || move.day > 6) return;
     const date = dateKey(calendarDayDate(this.offset(), move.day));
     if (this.store.moveTask(move.id, date, move.startMinute)) {
@@ -216,12 +204,12 @@ export class CalendarPreviewComponent {
     }
   }
 
-  protected toggleCompleted(): void {
+  toggleCompleted(): void {
     const task = this.selected();
     if (task) this.store.toggleCompleted(task.id);
   }
 
-  protected deleteTask(): void {
+  deleteTask(): void {
     const task = this.selected();
     if (
       task &&
@@ -233,7 +221,7 @@ export class CalendarPreviewComponent {
     }
   }
 
-  protected async copyLink(): Promise<void> {
+  async copyLink(): Promise<void> {
     const task = this.selected();
     if (!task) return;
     const url = new URL(window.location.href);

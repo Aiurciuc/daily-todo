@@ -18,8 +18,14 @@ export class TaskDetailsComponent {
   readonly completionToggled = output<void>();
   readonly editRequested = output<void>();
   readonly linkRequested = output<void>();
-  protected readonly details = computed<TerraTaskDetails>(() => {
+  readonly details = computed<TerraTaskDetails>(() => {
     const task = this.task();
+    const minutes = Math.round(task.duration * 60);
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    const duration = [hours ? `${hours}h` : '', remainder || !hours ? `${remainder} min` : '']
+      .filter(Boolean)
+      .join(' ');
     return {
       title: task.title,
       shared: task.shared,
@@ -31,8 +37,8 @@ export class TaskDetailsComponent {
             ' – ' +
             formatCalendarTime(task.start + task.duration) +
             ' (' +
-            task.duration +
-            ' hrs)',
+            duration +
+            ')',
       dateLabel: formatDate(this.selectedDate(), 'EEE, MMM d', 'en-US'),
       notes: task.notes ?? undefined,
     };

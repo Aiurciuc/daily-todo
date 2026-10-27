@@ -50,7 +50,7 @@ export class CalendarTimeGridComponent {
   private readonly calendarScroll = viewChild.required<ElementRef<HTMLElement>>('calendarScroll');
   private readonly destroyRef = inject(DestroyRef);
   private readonly now = signal(new Date());
-  protected readonly nowMarker = computed(() => {
+  readonly nowMarker = computed(() => {
     const now = this.now();
     const day = this.visibleDays().find((day) => dateKey(this.dayDate(day)) === dateKey(now));
     if (day === undefined) return null;
@@ -79,7 +79,7 @@ export class CalendarTimeGridComponent {
   readonly taskSelected = output<CalendarTask>();
   readonly slotSelected = output<TimeSlot>();
   // Split connected overlap groups into lanes; the library block only renders content.
-  protected readonly positions = computed(() => {
+  readonly positions = computed(() => {
     const result = new Map<number, { left: string; width: string }>();
     for (let day = 0; day < 7; day++) {
       const tasks = this.tasks()
@@ -111,10 +111,10 @@ export class CalendarTimeGridComponent {
     }
     return result;
   });
-  protected readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  protected readonly weekdays = CALENDAR_WEEKDAYS;
-  protected readonly hours = CALENDAR_HOURS;
-  protected readonly time = formatCalendarTime;
+  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  readonly weekdays = CALENDAR_WEEKDAYS;
+  readonly hours = CALENDAR_HOURS;
+  readonly time = formatCalendarTime;
   constructor() {
     effect(() => {
       // A destroyed CDK drag does not emit ended. Navigation/filtering must not
@@ -145,17 +145,17 @@ export class CalendarTimeGridComponent {
     });
   }
 
-  protected readonly visibleDays = computed(() =>
+  readonly visibleDays = computed(() =>
     this.dayView() ? [this.activeDay()] : [0, 1, 2, 3, 4, 5, 6],
   );
-  protected readonly untimedDays = computed(() =>
+  readonly untimedDays = computed(() =>
     this.visibleDays().map((day) => ({
       day,
       tasks: this.tasks().filter((task) => task.day === day && task.scheduled === false),
     })),
   );
 
-  protected readonly canEnter = (
+  readonly canEnter = (
     drag: CdkDrag<number>,
     list: CdkDropList<CalendarDropZone>,
   ): boolean => this.validDrag(drag) && this.validZone(list.data);
@@ -189,11 +189,11 @@ export class CalendarTimeGridComponent {
     );
   }
 
-  protected capturePickup(event: PointerEvent, element: HTMLElement, task: CalendarTask): void {
+  capturePickup(event: PointerEvent, element: HTMLElement, task: CalendarTask): void {
     this.pickup = { id: task.id, grabOffset: event.clientY - element.getBoundingClientRect().top };
   }
 
-  protected dragStarted(event: CdkDragStart<number>): void {
+  dragStarted(event: CdkDragStart<number>): void {
     const source = event.source;
     const task = this.tasks().find((task) => task.id === source.data);
     const zone = source.dropContainer.data as CalendarDropZone;
@@ -222,7 +222,7 @@ export class CalendarTimeGridComponent {
     };
   }
 
-  protected dropTask(event: CdkDragDrop<CalendarDropZone, CalendarDropZone, number>): void {
+  dropTask(event: CdkDragDrop<CalendarDropZone, CalendarDropZone, number>): void {
     try {
       if (
         !event.isPointerOverContainer ||
@@ -256,7 +256,7 @@ export class CalendarTimeGridComponent {
     }
   }
 
-  protected dragEnded(source: CdkDrag<number>): void {
+  dragEnded(source: CdkDrag<number>): void {
     source.reset();
     // CDK emits ended before dropped; retain validation state through this turn.
     const state = this.dragState;
@@ -267,15 +267,15 @@ export class CalendarTimeGridComponent {
     this.suppressClickUntil = Date.now() + 300;
   }
 
-  protected selectTask(task: CalendarTask): void {
+  selectTask(task: CalendarTask): void {
     if (Date.now() >= this.suppressClickUntil) this.taskSelected.emit(task);
   }
 
-  protected selectSlot(day: number, hour: number): void {
+  selectSlot(day: number, hour: number): void {
     if (Date.now() >= this.suppressClickUntil) this.slotSelected.emit({ day, hour });
   }
 
-  protected dayDate(day: number): Date {
+  dayDate(day: number): Date {
     return calendarDayDate(this.offset(), day);
   }
 }
