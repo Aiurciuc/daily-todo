@@ -45,6 +45,32 @@ describe('API-backed calendar', () => {
 
   afterEach(() => TestBed.inject(HttpTestingController).verify());
 
+  it('overlays the calendar only while loading and restores interaction afterwards', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    const fixture = TestBed.createComponent(CalendarPreviewComponent);
+    const http = TestBed.inject(HttpTestingController);
+    await TestBed.tick();
+    const pending = http.expectOne((req) => req.url === '/api/tasks' && req.method === 'GET');
+    const element = fixture.nativeElement as HTMLElement;
+    const workspace = element.querySelector('.workspace')!;
+    const content = element.querySelector('.calendar-content')!;
+    const grid = element.querySelector('app-calendar-time-grid');
+    expect(grid).not.toBeNull();
+    expect(workspace.getAttribute('aria-busy')).toBe('true');
+    expect(content.hasAttribute('inert')).toBe(true);
+    expect(element.querySelector('.loading-overlay[role="status"]')?.getAttribute('aria-label'))
+      .toBe('Loading tasks…');
+    expect(element.querySelector('.loading-spinner')?.getAttribute('aria-hidden')).toBe('true');
+    pending.flush([task]);
+    await fixture.whenStable();
+    expect(element.querySelector('.loading-overlay')).toBeNull();
+    expect(workspace.getAttribute('aria-busy')).toBe('false');
+    expect(content.hasAttribute('inert')).toBe(false);
+    expect(element.querySelector('app-calendar-time-grid')).toBe(grid);
+  });
+
   it('renders only server data, accurate minutes and real notes', async () => {
     const { fixture, element } = await render();
     expect(element.querySelector('app-calendar-toolbar')).toBeNull();
@@ -457,10 +483,13 @@ describe('API-backed calendar', () => {
     element.querySelector<HTMLButtonElement>('.date-navigation [aria-label="Next week"]')!.click();
     await TestBed.tick();
     const next = http.expectOne((req) => req.method === 'GET');
+    expect(element.querySelector('.loading-overlay')).not.toBeNull();
     expect(next.request.params.get('from')).toBe(dateKey(calendarDayDate(1, 0)));
     next.flush({}, { status: 503, statusText: 'Unavailable' });
     await fixture.whenStable();
     expect(element.textContent).toContain('Unable to load tasks');
+    expect(element.querySelector('.loading-overlay')).toBeNull();
+    expect(element.querySelector('.calendar-content')?.hasAttribute('inert')).toBe(false);
     Array.from(element.querySelectorAll('button'))
       .find((button) => button.textContent?.trim() === 'Retry')!
       .click();

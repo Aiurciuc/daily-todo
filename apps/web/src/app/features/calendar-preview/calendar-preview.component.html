@@ -12,39 +12,43 @@
 />
 <main class="dashboard">
   <section class="workspace" aria-label="Calendar workspace" [attr.aria-busy]="store.loading()">
-    @if (true) {
-      <p class="state-message" role="status">Loading tasks…</p>
-    }
-    @if (store.loadError()) {
-      <div class="state-message" role="alert">
-        Unable to load tasks. Check the API/database connection.
-        <button class="outline-button" (click)="store.reload()">Retry</button>
+    @if (store.loading()) {
+      <div class="loading-overlay" role="status" aria-label="Loading tasks…">
+        <span class="loading-spinner" aria-hidden="true"></span>
       </div>
-    } @else {
-      @if (view() !== 'Month') {
-        <app-calendar-time-grid
-          [tasks]="visibleTasks()"
-          [selectedId]="selectedId()"
-          [dayView]="view() === 'Day'"
-          [activeDay]="activeDay()"
-          [offset]="offset()"
-          [interactionDisabled]="store.saving() || store.loading()"
-          (taskMoved)="moveTask($event)"
-          (daySelected)="activeDay.set($event)"
-          (taskSelected)="selectTask($event)"
-          (slotSelected)="activeDay.set($event.day); openTask($event.day, $event.hour)"
-        />
+    }
+    <div class="calendar-content" [attr.inert]="store.loading() ? '' : null">
+      @if (store.loadError()) {
+        <div class="state-message" role="alert">
+          Unable to load tasks. Check the API/database connection.
+          <button class="outline-button" (click)="store.reload()">Retry</button>
+        </div>
       } @else {
-        <app-calendar-month-view
-          [days]="monthDays()"
-          [tasks]="visibleTasks()"
-          (dateSelected)="chooseDate($event); view.set('Day')"
-        />
+        @if (view() !== 'Month') {
+          <app-calendar-time-grid
+            [tasks]="visibleTasks()"
+            [selectedId]="selectedId()"
+            [dayView]="view() === 'Day'"
+            [activeDay]="activeDay()"
+            [offset]="offset()"
+            [interactionDisabled]="store.saving() || store.loading()"
+            (taskMoved)="moveTask($event)"
+            (daySelected)="activeDay.set($event)"
+            (taskSelected)="selectTask($event)"
+            (slotSelected)="activeDay.set($event.day); openTask($event.day, $event.hour)"
+          />
+        } @else {
+          <app-calendar-month-view
+            [days]="monthDays()"
+            [tasks]="visibleTasks()"
+            (dateSelected)="chooseDate($event); view.set('Day')"
+          />
+        }
       }
-    }
-    @if (store.mutationError()) {
-      <p class="state-message" role="alert">{{ store.mutationError() }}</p>
-    }
+      @if (store.mutationError()) {
+        <p class="state-message" role="alert">{{ store.mutationError() }}</p>
+      }
+    </div>
   </section>
   <aside class="inspector" aria-label="Calendar and task details">
     <app-mini-calendar
